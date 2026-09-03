@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Mystery Click — 5 Milyonuncu Tık Ödülü</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <!-- Lemon Squeezy Overlay Script -->
+  <script src="https://assets.lemonsqueezy.com/lemon.js" defer></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-amber-500 selection:text-black">
+  
+  <!-- Background Glow Effects -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none -z-10">
+    <div class="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-amber-500/10 rounded-full blur-[140px]"></div>
+    <div class="absolute bottom-10 left-10 w-[400px] h-[400px] bg-cyan-500/10 rounded-full blur-[120px]"></div>
+    <div class="absolute top-10 right-10 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[120px]"></div>
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <header class="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40 px-4 py-3 sm:px-8">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      
+      <!-- Brand / Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-rose-500 flex items-center justify-center shadow-lg shadow-amber-500/20 ring-1 ring-white/20">
+          <i class="fa-solid fa-gem text-black font-bold text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-black tracking-wider bg-gradient-to-r from-amber-400 via-rose-300 to-amber-200 bg-clip-text text-transparent">
+            MYSTERY CLICK
+          </h1>
+          <p class="text-xs text-slate-400 flex items-center gap-1">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            5M Gizli Hedef
+          </p>
+        </div>
+      </div>
+
+      <!-- User Stats & Actions -->
+      <div class="flex items-center gap-3 sm:gap-4">
+        
+        <!-- Sound Toggle -->
+        <button id="soundToggleBtn" class="p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/60" title="Sesi Aç/Kapat">
+          <i id="soundIcon" class="fa-solid fa-volume-high text-sm"></i>
+        </button>
+
+        <!-- Test Simulation Tool -->
+        <button id="openTestModalBtn" class="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-800/50 text-xs font-semibold transition-all">
+          <i class="fa-solid fa-flask"></i>
+          <span>Demo Test</span>
+        </button>
+
+        <!-- Balance Display -->
+        <div id="balanceContainer" class="hidden flex items-center gap-2 bg-slate-800/90 border border-amber-500/30 px-3.5 py-1.5 rounded-xl shadow-inner">
+          <div class="text-right">
+            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Kalan Tık</div>
+            <div class="text-sm font-black text-amber-400 flex items-center gap-1 justify-end">
+              <span id="userBalanceText">0</span>
+              <span class="text-xs text-slate-400 font-normal">tık</span>
+            </div>
+          </div>
+          <!-- Buy Clicks Button -->
+          <button id="openBuyModalBtn" class="ml-1 px-3 py-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs shadow-md shadow-amber-500/20 transition-all flex items-center gap-1 active:scale-95">
+            <i class="fa-solid fa-plus text-[10px]"></i> Tık Al
+          </button>
+        </div>
+
+        <!-- User Auth Badge / Login Button -->
+        <div id="userBadgeArea">
+          <button id="openLoginModalBtn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2 active:scale-95">
+            <i class="fa-brands fa-google"></i>
+            <span>Giriş Yap</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Game Stage -->
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-6 flex flex-col items-center justify-between">
+    
+    <!-- Hero / Mystery Hook Tagline -->
+    <div class="text-center max-w-xl mx-auto mb-4">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold mb-2">
+        <i class="fa-solid fa-eye-slash text-[11px]"></i>
+        <span>Sayaç Gizlidir — Kaç Tık Kaldığını Kimse Bilmiyor</span>
+      </div>
+      <h2 class="text-2xl sm:text-3xl font-black text-white tracking-tight leading-tight">
+        5.000.000'uncu Tıklamayı Yapan <br>
+        <span class="bg-gradient-to-r from-amber-400 via-yellow-200 to-amber-500 bg-clip-text text-transparent drop-shadow">
+          Büyük Hediyeyi Kazanır!
+        </span>
+      </h2>
+      <p class="text-xs sm:text-sm text-slate-400 mt-1">
+        Her tık 10 cent. Bir sonraki tıklama 5 milyonuncu tık olabilir...
+      </p>
+    </div>
+
+    <!-- Center Stage: The Big Mystery Button -->
+    <div class="relative my-6 flex flex-col items-center justify-center">
+      
+      <!-- Interactive Pulsing Halo -->
+      <div id="buttonAura" class="absolute w-72 h-72 sm:w-88 sm:h-88 rounded-full bg-gradient-to-r from-amber-500/20 via-rose-500/20 to-amber-500/20 blur-2xl animate-pulse pointer-events-none"></div>
+
+      <!-- The Button Container -->
+      <div class="relative p-4 rounded-full bg-gradient-to-b from-slate-700/60 to-slate-900/90 border-4 border-slate-700/80 shadow-2xl shadow-black/80">
+        
+        <!-- The Click Button -->
+        <button id="theMysteryButton" class="mystery-btn relative w-56 h-56 sm:w-68 sm:h-68 rounded-full flex flex-col items-center justify-center text-center cursor-pointer select-none focus:outline-none group active:scale-95 transition-transform duration-75">
+          
+          <!-- Inner Glow & Rings -->
+          <div class="absolute inset-2 rounded-full border-2 border-white/20 pointer-events-none"></div>
+          <div class="absolute inset-4 rounded-full bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
+
+          <!-- Icon & Label -->
+          <div class="relative z-10 flex flex-col items-center transition-transform group-hover:scale-105">
+            <div class="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center mb-2 shadow-inner border border-white/20">
+              <i class="fa-solid fa-fingerprint text-3xl text-amber-200 group-hover:text-white transition-colors"></i>
+            </div>
+            <span class="text-2xl sm:text-3xl font-black tracking-widest text-white drop-shadow-md">
+              TIKLA
+            </span>
+            <span class="text-[11px] font-bold text-amber-300 uppercase tracking-wider mt-1 opacity-90">
+              $0.10 / TIK
+            </span>
+          </div>
+
+          <!-- Ripple Container -->
+          <div id="rippleLayer" class="absolute inset-0 rounded-full overflow-hidden pointer-events-none"></div>
+        </button>
+
+      </div>
+
+      <!-- Multi-Click Selector Bar -->
+      <div class="mt-6 flex items-center gap-2 bg-slate-900/80 border border-slate-800 p-1.5 rounded-2xl shadow-lg">
+        <span class="text-xs text-slate-400 font-semibold pl-2 pr-1">Tıklama Modu:</span>
+        <button data-batch="1" class="batch-btn active px-3 py-1 rounded-xl text-xs font-bold transition-all bg-amber-500 text-black">1 Tık</button>
+        <button data-batch="5" class="batch-btn px-3 py-1 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white hover:bg-slate-800">5 Tık</button>
+        <button data-batch="10" class="batch-btn px-3 py-1 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white hover:bg-slate-800">10 Tık</button>
+      </div>
+
+    </div>
+
+    <!-- Below the Button: Live Activity Feed (Şu kişi şu kadar click yaptı) -->
+    <section class="w-full max-w-xl mt-4 bg-slate-900/70 border border-slate-800/90 rounded-2xl p-4 shadow-xl backdrop-blur-sm">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 mb-3">
+        <div class="flex items-center gap-2">
+          <span class="relative flex h-2.5 w-2.5">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+          </span>
+          <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-200">
+            Canlı Tık Akışı
+          </h3>
+        </div>
+        <span class="text-[11px] text-slate-400 flex items-center gap-1">
+          <i class="fa-solid fa-satellite-dish text-emerald-400"></i> Canlı Bağlantı
+        </span>
+      </div>
+
+      <!-- The Live Feed List -->
+      <div id="liveActivityList" class="space-y-2 max-h-48 overflow-y-auto pr-1 select-none custom-scroll">
+        <!-- Dynamic items will be added here -->
+        <div class="text-center py-6 text-slate-400 text-xs italic">
+          Canlı tıklar bekleniyor...
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="w-full border-t border-slate-800/60 py-3 text-center text-xs text-slate-400">
+    <div class="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+      <p>© 2026 The Mystery Click Platform. Minimum tık paketi: 10 Tık ($1.00).</p>
+      <div class="flex items-center gap-3 text-slate-400">
+        <span><i class="fa-solid fa-shield-halved text-emerald-500"></i> Atomik Sayaç Korumalı</span>
+        <span>•</span>
+        <button id="openRulesBtn" class="hover:text-white underline">Kurallar & Bilgi</button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- MODAL 1: Login Modal (Gmail + Nickname) -->
+  <div id="loginModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-md w-full p-6 shadow-2xl relative animate-in">
+      <button id="closeLoginModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-600 mx-auto flex items-center justify-center mb-3 shadow-lg shadow-cyan-500/20">
+          <i class="fa-brands fa-google text-2xl text-white"></i>
+        </div>
+        <h3 class="text-xl font-black text-white">Katılmak İçin Giriş Yap</h3>
+        <p class="text-xs text-slate-400 mt-1">Tıklama yapabilmek ve 5M hediyesini kazanabilmek için bilgilerinizi girin.</p>
+      </div>
+
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Gmail / E-Posta Adresiniz</label>
+          <div class="relative">
+            <i class="fa-regular fa-envelope absolute left-3.5 top-3.5 text-slate-400"></i>
+            <input type="email" id="loginEmail" required placeholder="ornek@gmail.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors">
+          </div>
+          <span class="text-[10px] text-slate-400 mt-1 block">5.000.000'uncu tık vurulduğunda ödül bu e-postaya iletilecektir.</span>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Kullanıcı Adı (Nickname)</label>
+          <div class="relative">
+            <i class="fa-solid fa-at absolute left-3.5 top-3.5 text-slate-400"></i>
+            <input type="text" id="loginNickname" required maxlength="18" placeholder="Orn: crypto_king" class="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors">
+          </div>
+          <span class="text-[10px] text-slate-400 mt-1 block">Butonun altındaki canlı akışta görünecek adınız.</span>
+        </div>
+
+        <button type="submit" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-sm shadow-lg shadow-amber-500/20 transition-all active:scale-98">
+          Giriş Yap ve Başla
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Buy Clicks Modal (10 Clicks Min = $1.00) -->
+  <div id="buyModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative animate-in">
+      <button id="closeBuyModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-500 to-yellow-400 mx-auto flex items-center justify-center mb-3 shadow-lg shadow-amber-500/20">
+          <i class="fa-solid fa-bolt text-2xl text-slate-950"></i>
+        </div>
+        <h3 class="text-xl font-black text-white">Tık Paketi Satın Al</h3>
+        <p class="text-xs text-slate-400 mt-1">1 Tık = 10 Cent ($0.10) • Minimum Satın Alma: 10 Tık ($1.00)</p>
+      </div>
+
+      <!-- Package Selection -->
+      <div class="grid grid-cols-2 gap-3 mb-5">
+        
+        <!-- Package 10 (Minimum) -->
+        <label class="cursor-pointer">
+          <input type="radio" name="clickPackage" value="10" checked class="peer sr-only">
+          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400">Başlangıç (Min)</span>
+            <div>
+              <div class="text-2xl font-black text-white">10 <span class="text-xs font-normal text-slate-400">Tık</span></div>
+              <div class="text-sm font-bold text-amber-400">$1.00</div>
+            </div>
+          </div>
+        </label>
+
+        <!-- Package 50 -->
+        <label class="cursor-pointer">
+          <input type="radio" name="clickPackage" value="50" class="peer sr-only">
+          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-400">Popüler</span>
+            <div>
+              <div class="text-2xl font-black text-white">50 <span class="text-xs font-normal text-slate-400">Tık</span></div>
+              <div class="text-sm font-bold text-amber-400">$5.00</div>
+            </div>
+          </div>
+        </label>
+
+        <!-- Package 100 -->
+        <label class="cursor-pointer">
+          <input type="radio" name="clickPackage" value="100" class="peer sr-only">
+          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-purple-400">Avantajlı</span>
+            <div>
+              <div class="text-2xl font-black text-white">100 <span class="text-xs font-normal text-slate-400">Tık</span></div>
+              <div class="text-sm font-bold text-amber-400">$10.00</div>
+            </div>
+          </div>
+        </label>
+
+        <!-- Package 500 -->
+        <label class="cursor-pointer">
+          <input type="radio" name="clickPackage" value="500" class="peer sr-only">
+          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-rose-400">VIP Avcı</span>
+            <div>
+              <div class="text-2xl font-black text-white">500 <span class="text-xs font-normal text-slate-400">Tık</span></div>
+              <div class="text-sm font-bold text-amber-400">$50.00</div>
+            </div>
+          </div>
+        </label>
+
+      </div>
+
+      <!-- Payment Method Simulation -->
+      <div class="mb-5 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+        <div class="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+          <span>Ödeme Yöntemi</span>
+          <span class="text-[10px] text-emerald-400 flex items-center gap-1">
+            <i class="fa-solid fa-lock"></i> 256-Bit SSL Korumalı
+          </span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <button type="button" class="py-2 px-3 rounded-xl bg-slate-800 border border-amber-500 text-amber-300 font-semibold flex items-center justify-center gap-2">
+            <i class="fa-regular fa-credit-card"></i> Kredi Kartı / POS
+          </button>
+          <button type="button" class="py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 font-semibold flex items-center justify-center gap-2">
+            <i class="fa-brands fa-bitcoin"></i> Kripto (USDT)
+          </button>
+        </div>
+      </div>
+
+      <button id="confirmBuyBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-lg shadow-emerald-500/20 transition-all active:scale-98 flex items-center justify-center gap-2">
+        <i class="fa-solid fa-check"></i>
+        <span id="buyButtonText">10 Tık Al ($1.00)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 3: 5 Million Winner Modal (Büyük Hediyeyi Kazanan!) -->
+  <div id="winnerModal" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-gradient-to-b from-amber-950/80 to-slate-950 border-2 border-amber-500 rounded-3xl max-w-lg w-full p-8 shadow-2xl text-center relative animate-bounce-short">
+      
+      <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 mx-auto flex items-center justify-center mb-4 shadow-xl shadow-amber-500/40 border-4 border-amber-300">
+        <i class="fa-solid fa-trophy text-4xl text-slate-950"></i>
+      </div>
+
+      <div class="inline-block px-4 py-1 rounded-full bg-amber-500/20 border border-amber-400/40 text-amber-300 font-black text-xs uppercase tracking-widest mb-3">
+        BÜYÜK HEDİYE SAHİBİNİ BULDU!
+      </div>
+
+      <h2 class="text-3xl font-black text-white tracking-tight mb-2">
+        5.000.000'UNCU TIK VURULDU!
+      </h2>
+
+      <p class="text-sm text-slate-300 mb-6">
+        Tebrikler! Milyonlarca tıklamanın ardından gizemli hedefe ulaşıldı.
+      </p>
+
+      <div class="bg-slate-900/90 border border-amber-500/40 rounded-2xl p-5 mb-6 text-left">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-slate-400">Kazanan Kullanıcı:</span>
+          <span id="winnerNick" class="text-lg font-black text-amber-400">@...</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-xs text-slate-400">Kazanan E-Posta:</span>
+          <span id="winnerEmail" class="text-sm font-semibold text-slate-200">...</span>
+        </div>
+      </div>
+
+      <button id="closeWinnerModalBtn" class="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm transition-all shadow-lg shadow-amber-500/30">
+        Görüntülemeye Devam Et
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL 4: Rules / Information Modal -->
+  <div id="rulesModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-slate-700/80 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
+      <button id="closeRulesModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <h3 class="text-lg font-black text-white mb-3 flex items-center gap-2">
+        <i class="fa-solid fa-circle-question text-amber-400"></i>
+        The Mystery Click Nasıl Çalışır?
+      </h3>
+
+      <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
+        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 mb-1">1. Sayaç Neden Gizli?</h4>
+          <p>Ekranda kaçıncı tıkta olunduğu bilerek gösterilmez. Böylece kimse son tıklamayı bekleyip pusuya yatamaz! Her an 5.000.000'uncu tık basılabilir.</p>
+        </div>
+
+        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 mb-1">2. Tıklama Maliyeti ve Paketler</h4>
+          <p>Her bir tık 10 cent ($0.10) değerindedir. Minimum 10 tık ($1.00) paketi satın alınabilir. Tıklarınız bittiğinde yeniden yükleyebilirsiniz.</p>
+        </div>
+
+        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 mb-1">3. Canlı Tık Akışı</h4>
+          <p>Butonun altındaki canlı akışta platformdaki tüm kullanıcıların tık aktiviteleri anlık olarak yayınlanır.</p>
+        </div>
+
+        <div class="p-3 bg-slate-950 rounded-xl border border-slate-800">
+          <h4 class="font-bold text-amber-300 mb-1">4. 5 Milyonuncu Tık ve Hediye</h4>
+          <p>Tüm dünyadaki genel toplam tık sayısı tam 5.000.000'a ulaştığında, bu tıkı yapan kişinin ekranında büyük zafer ekranı açılır ve Gmail adresine ödül teyidi iletilir.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: Demo / Admin Simulation Modal -->
+  <div id="testModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-purple-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
+      <button id="closeTestModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <h3 class="text-base font-black text-purple-300 mb-2 flex items-center gap-2">
+        <i class="fa-solid fa-flask"></i>
+        Geliştirici & Test Paneli
+      </h3>
+      <p class="text-xs text-slate-400 mb-4">
+        5.000.000 tık hedefine normalde ulaşmak zaman alacağından, sistemi test edebilmeniz için sayacı hedefe yaklaştırabilirsiniz.
+      </p>
+
+      <div class="space-y-3">
+        <button id="setNearTargetBtn" class="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors flex items-center justify-between">
+          <span>Sayacı 4.999.995'e çek (5 Tık Kaldı)</span>
+          <i class="fa-solid fa-forward-fast"></i>
+        </button>
+
+        <button id="setTarget10Btn" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors flex items-center justify-between">
+          <span>Hedefi 20 Tık Yap & Sıfırla (Hızlı Test)</span>
+          <i class="fa-solid fa-rotate-left"></i>
+        </button>
+
+        <button id="resetNormal5MBtn" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors flex items-center justify-between">
+          <span>Sayacı Normal 0 / 5.000.000 Yap</span>
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

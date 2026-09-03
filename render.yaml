@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: the-mystery-click
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: LEMON_SQUEEZY_API_KEY
+        sync: false
+      - key: LEMON_SQUEEZY_STORE_ID
+        sync: false
+      - key: LEMON_SQUEEZY_WEBHOOK_SECRET
+        sync: false
