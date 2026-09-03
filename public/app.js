@@ -567,7 +567,7 @@ function showWinner(winner) {
   frame();
 }
 
-// Event Listeners & Modals
+// Form Submit & Modal Buttons
 loginForm.addEventListener('submit', (e) => {
   e.preventDefault();
   const email = loginEmailInput.value;
@@ -586,8 +586,29 @@ if (openRulesBtnNav) {
   openRulesBtnNav.addEventListener('click', () => rulesModal.classList.remove('hidden'));
 }
 
+// Open Login Modal (Delegated so it works on initial load and after re-renders)
+document.addEventListener('click', (e) => {
+  const loginTrigger = e.target.closest('#openLoginModalBtn');
+  if (loginTrigger) {
+    loginModal.classList.remove('hidden');
+    if (loginEmailInput) loginEmailInput.focus();
+  }
+});
+
+// Close modals when clicking backdrop
+[loginModal, buyModal, rulesModal, winnerModal].forEach(modal => {
+  if (modal) {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.add('hidden');
+      }
+    });
+  }
+});
+
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
   initWebSocket();
   checkStoredUser();
+  updateUserUI();
 });
