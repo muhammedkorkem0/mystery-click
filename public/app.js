@@ -133,13 +133,7 @@ const closeWinnerModalBtn = document.getElementById('closeWinnerModalBtn');
 const rulesModal = document.getElementById('rulesModal');
 const openRulesBtn = document.getElementById('openRulesBtn');
 const closeRulesModalBtn = document.getElementById('closeRulesModalBtn');
-
-const testModal = document.getElementById('testModal');
-const openTestModalBtn = document.getElementById('openTestModalBtn');
-const closeTestModalBtn = document.getElementById('closeTestModalBtn');
-const setNearTargetBtn = document.getElementById('setNearTargetBtn');
-const setTarget10Btn = document.getElementById('setTarget10Btn');
-const resetNormal5MBtn = document.getElementById('resetNormal5MBtn');
+const openRulesBtnNav = document.getElementById('openRulesBtnNav');
 
 // Sound Toggle
 soundToggleBtn.addEventListener('click', () => {
@@ -588,40 +582,9 @@ closeWinnerModalBtn.addEventListener('click', () => winnerModal.classList.add('h
 
 openRulesBtn.addEventListener('click', () => rulesModal.classList.remove('hidden'));
 closeRulesModalBtn.addEventListener('click', () => rulesModal.classList.add('hidden'));
-
-// Admin / Developer Test Controls
-openTestModalBtn.addEventListener('click', () => testModal.classList.remove('hidden'));
-closeTestModalBtn.addEventListener('click', () => testModal.classList.add('hidden'));
-
-setNearTargetBtn.addEventListener('click', async () => {
-  await fetch('/api/admin/simulate-near-target', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targetClicks: 5000000, currentClicks: 4999995 })
-  });
-  testModal.classList.add('hidden');
-  alert('Sayaç 4.999.995 olarak ayarlandı! Son 5 tıkı vurup 5M zaferini test edebilirsiniz.');
-});
-
-setTarget10Btn.addEventListener('click', async () => {
-  await fetch('/api/admin/simulate-near-target', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targetClicks: 20, currentClicks: 15 })
-  });
-  testModal.classList.add('hidden');
-  alert('Hedef 20 tık yapıldı ve sayaç 15 olarak ayarlandı! (5 tık sonra ödül patlar).');
-});
-
-resetNormal5MBtn.addEventListener('click', async () => {
-  await fetch('/api/admin/simulate-near-target', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targetClicks: 5000000, currentClicks: 0 })
-  });
-  testModal.classList.add('hidden');
-  alert('Sayaç 0 / 5.000.000 olarak sıfırlandı.');
-});
+if (openRulesBtnNav) {
+  openRulesBtnNav.addEventListener('click', () => rulesModal.classList.remove('hidden'));
+}
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {

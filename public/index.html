@@ -48,10 +48,10 @@
           <i id="soundIcon" class="fa-solid fa-volume-high text-sm"></i>
         </button>
 
-        <!-- Test Simulation Tool -->
-        <button id="openTestModalBtn" class="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-800/50 text-xs font-semibold transition-all">
-          <i class="fa-solid fa-flask"></i>
-          <span>Demo Test</span>
+        <!-- How It Works / Rules Button -->
+        <button id="openRulesBtnNav" class="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700/60 text-xs font-semibold transition-all">
+          <i class="fa-solid fa-circle-question text-amber-400"></i>
+          <span>Nasıl Oynanır?</span>
         </button>
 
         <!-- Balance Display -->
@@ -389,40 +389,6 @@
           <h4 class="font-bold text-amber-300 mb-1">4. 5 Milyonuncu Tık ve Hediye</h4>
           <p>Tüm dünyadaki genel toplam tık sayısı tam 5.000.000'a ulaştığında, bu tıkı yapan kişinin ekranında büyük zafer ekranı açılır ve Gmail adresine ödül teyidi iletilir.</p>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL 5: Demo / Admin Simulation Modal -->
-  <div id="testModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-slate-900 border border-purple-800 rounded-3xl max-w-md w-full p-6 shadow-2xl relative">
-      <button id="closeTestModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
-        <i class="fa-solid fa-xmark text-lg"></i>
-      </button>
-
-      <h3 class="text-base font-black text-purple-300 mb-2 flex items-center gap-2">
-        <i class="fa-solid fa-flask"></i>
-        Geliştirici & Test Paneli
-      </h3>
-      <p class="text-xs text-slate-400 mb-4">
-        5.000.000 tık hedefine normalde ulaşmak zaman alacağından, sistemi test edebilmeniz için sayacı hedefe yaklaştırabilirsiniz.
-      </p>
-
-      <div class="space-y-3">
-        <button id="setNearTargetBtn" class="w-full py-2.5 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-colors flex items-center justify-between">
-          <span>Sayacı 4.999.995'e çek (5 Tık Kaldı)</span>
-          <i class="fa-solid fa-forward-fast"></i>
-        </button>
-
-        <button id="setTarget10Btn" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors flex items-center justify-between">
-          <span>Hedefi 20 Tık Yap & Sıfırla (Hızlı Test)</span>
-          <i class="fa-solid fa-rotate-left"></i>
-        </button>
-
-        <button id="resetNormal5MBtn" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-colors flex items-center justify-between">
-          <span>Sayacı Normal 0 / 5.000.000 Yap</span>
-          <i class="fa-solid fa-arrows-rotate"></i>
-        </button>
       </div>
     </div>
   </div>

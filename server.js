@@ -246,17 +246,15 @@ app.post('/api/click', async (req, res) => {
   }
 });
 
-// 5. Admin / Test Simulation
+// 5. Secure Admin Counter Maintenance (Protected with ADMIN_SECRET)
 app.post('/api/admin/simulate-near-target', async (req, res) => {
+  const adminKey = req.headers['x-admin-key'];
+  if (!process.env.ADMIN_SECRET || adminKey !== process.env.ADMIN_SECRET) {
+    return res.status(403).json({ error: 'Yetkisiz erişim.' });
+  }
   try {
-    const { targetClicks = 5000000, currentClicks = 4999995 } = req.body;
+    const { targetClicks = 5000000, currentClicks = 0 } = req.body;
     await db.simulateTarget(targetClicks, currentClicks);
-
-    broadcast({
-      type: 'ADMIN_RESET',
-      message: 'Sayaç test amacıyla güncellendi.'
-    });
-
     return res.json({ success: true, targetClicks, currentClicks });
   } catch (err) {
     return res.status(500).json({ error: err.message });
