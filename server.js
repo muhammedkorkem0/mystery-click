@@ -8,20 +8,37 @@ const db = require('./db');
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+
+// In non-serverless environments, WebSocket server is initialized
+let wss = null;
+if (!process.env.VERCEL) {
+  wss = new WebSocket.Server({ server });
+}
 
 const PORT = process.env.PORT || 3000;
 
-// Middleware for JSON (except webhook which needs raw verification if desired)
+// Lazy Database Initialization for Vercel Serverless
+let isDbReady = false;
+app.use(async (req, res, next) => {
+  if (!isDbReady) {
+    await db.init();
+    isDbReady = true;
+  }
+  next();
+});
+
+// Middleware for JSON
 app.use(express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf;
   }
 }));
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Broadcast message to all connected clients via WebSocket
 function broadcast(data) {
+  if (!wss) return;
   const msg = JSON.stringify(data);
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
@@ -31,6 +48,19 @@ function broadcast(data) {
 }
 
 // REST APIs
+
+// 0. Live Feed Poll Endpoint (Essential for Vercel fallback)
+app.get('/api/feed', async (req, res) => {
+  try {
+    const initState = await db.getInitialState();
+    return res.json({
+      winner: initState.winner,
+      recentActivity: initState.recentActivity
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 // 1. User Login / Registration
 app.post('/api/auth/login', async (req, res) => {
@@ -75,11 +105,8 @@ app.post('/api/clicks/create-checkout', async (req, res) => {
 
     const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
     const storeId = process.env.LEMON_SQUEEZY_STORE_ID;
-
-    // Variant ID mapping based on package
     let variantId = process.env[`LEMON_VARIANT_${amount}_CLICKS`];
 
-    // If Lemon Squeezy credentials are fully configured, generate live/sandbox checkout URL
     if (apiKey && storeId && variantId) {
       const response = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
         method: 'POST',
@@ -129,7 +156,6 @@ app.post('/api/clicks/create-checkout', async (req, res) => {
     }
 
     // FALLBACK / DEMO SIMULATION (If Lemon Squeezy API keys are not filled yet)
-    // Allows testing the flow smoothly right now!
     const result = await db.buyClicks(cleanEmail, amount);
     return res.json({
       success: true,
@@ -145,13 +171,12 @@ app.post('/api/clicks/create-checkout', async (req, res) => {
   }
 });
 
-// 3. Lemon Squeezy Webhook Listener (Automatic balance crediting on payment)
+// 3. Lemon Squeezy Webhook Listener
 app.post('/api/payments/lemon-webhook', async (req, res) => {
   try {
     const webhookSecret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
     const signature = req.headers['x-signature'];
 
-    // Verify webhook signature if secret is set
     if (webhookSecret && signature) {
       const hmac = crypto.createHmac('sha256', webhookSecret);
       const digest = hmac.update(req.rawBody).digest('hex');
@@ -169,10 +194,9 @@ app.post('/api/payments/lemon-webhook', async (req, res) => {
       const packageAmount = parseInt(customData.package_amount, 10) || 10;
 
       if (userEmail) {
-        console.log(`💳 Lemon Squeezy ödemesi alındı: ${userEmail} -> ${packageAmount} tık`);
+        console.log(`💳 Lemon Squeezy ödemesi: ${userEmail} -> ${packageAmount} tık`);
         await db.buyClicks(userEmail, packageAmount);
 
-        // Notify user via WebSocket if connected
         broadcast({
           type: 'PAYMENT_SUCCESS',
           email: userEmail,
@@ -196,13 +220,12 @@ app.post('/api/click', async (req, res) => {
 
     const result = await db.processClick(email, count, ip);
 
-    // Broadcast live activity feed to all connected players
+    // Broadcast via WS (if running)
     broadcast({
       type: 'CLICK_ACTIVITY',
       activity: result.activityItem
     });
 
-    // If 5 Millionth click is hit, trigger global celebration
     if (result.hitWinner) {
       broadcast({
         type: 'WINNER_ANNOUNCEMENT',
@@ -240,24 +263,30 @@ app.post('/api/admin/simulate-near-target', async (req, res) => {
   }
 });
 
-// WebSocket Connection
-wss.on('connection', async (ws) => {
-  try {
-    const initState = await db.getInitialState();
-    ws.send(JSON.stringify({
-      type: 'INIT_STATE',
-      winner: initState.winner,
-      recentActivity: initState.recentActivity
-    }));
-  } catch (err) {
-    console.error('WS init error:', err);
-  }
-});
-
-// Start Server after DB initialization
-(async () => {
-  await db.init();
-  server.listen(PORT, () => {
-    console.log(`The Mystery Click server running on http://localhost:${PORT}`);
+// WebSocket Connection (Non-serverless mode)
+if (wss) {
+  wss.on('connection', async (ws) => {
+    try {
+      const initState = await db.getInitialState();
+      ws.send(JSON.stringify({
+        type: 'INIT_STATE',
+        winner: initState.winner,
+        recentActivity: initState.recentActivity
+      }));
+    } catch (err) {
+      console.error('WS init error:', err);
+    }
   });
-})();
+}
+
+// Start Server if local / standard container
+if (!process.env.VERCEL) {
+  (async () => {
+    await db.init();
+    server.listen(PORT, () => {
+      console.log(`The Mystery Click server running on http://localhost:${PORT}`);
+    });
+  })();
+}
+
+module.exports = app;

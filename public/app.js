@@ -167,37 +167,85 @@ batchButtons.forEach(btn => {
   });
 });
 
-// Connect WebSocket
+// Connect WebSocket & Polling Fallback (for Vercel support)
 function initWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}`;
-  state.ws = new WebSocket(wsUrl);
 
-  state.ws.onmessage = (event) => {
-    try {
-      const data = JSON.parse(event.data);
-      if (data.type === 'INIT_STATE') {
-        if (data.recentActivity && data.recentActivity.length > 0) {
-          liveActivityList.innerHTML = '';
-          data.recentActivity.forEach(act => addFeedItem(act, false));
-        }
-        if (data.winner) {
+  try {
+    state.ws = new WebSocket(wsUrl);
+
+    state.ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'INIT_STATE') {
+          if (data.recentActivity && data.recentActivity.length > 0) {
+            liveActivityList.innerHTML = '';
+            data.recentActivity.forEach(act => addFeedItem(act, false));
+          }
+          if (data.winner) {
+            showWinner(data.winner);
+          }
+        } else if (data.type === 'CLICK_ACTIVITY') {
+          addFeedItem(data.activity, true);
+        } else if (data.type === 'WINNER_ANNOUNCEMENT') {
           showWinner(data.winner);
         }
-      } else if (data.type === 'CLICK_ACTIVITY') {
-        addFeedItem(data.activity, true);
-      } else if (data.type === 'WINNER_ANNOUNCEMENT') {
-        showWinner(data.winner);
+      } catch (err) {
+        console.error('WS parse error:', err);
       }
-    } catch (err) {
-      console.error('WS parse error:', err);
-    }
-  };
+    };
 
-  state.ws.onclose = () => {
-    // Reconnect after 2 seconds
-    setTimeout(initWebSocket, 2000);
-  };
+    state.ws.onerror = () => {
+      // If WebSocket fails (e.g. on Vercel), start HTTP polling
+      startPolling();
+    };
+
+    state.ws.onclose = () => {
+      startPolling();
+    };
+  } catch (e) {
+    startPolling();
+  }
+}
+
+// Polling fallback every 1.5s for Vercel
+let pollingActive = false;
+function startPolling() {
+  if (pollingActive) return;
+  pollingActive = true;
+  console.log('⚡ Canlı akış HTTP Polling moduna geçti (Vercel desteği).');
+
+  // Initial fetch
+  fetchFeed();
+  setInterval(fetchFeed, 1800);
+}
+
+let lastSeenTime = 0;
+async function fetchFeed() {
+  try {
+    const res = await fetch('/api/feed');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data.recentActivity && data.recentActivity.length > 0) {
+      const newest = data.recentActivity[0];
+      if (newest.time && newest.time > lastSeenTime) {
+        lastSeenTime = newest.time;
+        // Only update if placeholder is still there or if new items arrived
+        if (liveActivityList.querySelector('.italic')) {
+          liveActivityList.innerHTML = '';
+          data.recentActivity.forEach(act => addFeedItem(act, false));
+        } else {
+          addFeedItem(newest, true);
+        }
+      }
+    }
+    if (data.winner) {
+      showWinner(data.winner);
+    }
+  } catch (err) {
+    // Ignore transient network errors
+  }
 }
 
 // Add Item to Live Activity Feed ("@kullanici X click yaptı!")
