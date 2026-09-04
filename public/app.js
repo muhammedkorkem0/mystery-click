@@ -501,14 +501,10 @@ confirmBuyBtn.addEventListener('click', async () => {
       return;
     }
 
-    // 1. If Lemon Squeezy Checkout URL is returned
+    // 1. If Crypto Checkout URL is returned
     if (data.checkoutUrl) {
       buyModal.classList.add('hidden');
-      if (window.LemonSqueezy) {
-        window.LemonSqueezy.Url.Open(data.checkoutUrl);
-      } else {
-        window.location.href = data.checkoutUrl;
-      }
+      window.location.href = data.checkoutUrl;
       return;
     }
 

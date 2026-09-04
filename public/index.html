@@ -296,26 +296,35 @@
 
       </div>
 
-      <!-- Payment Method Simulation -->
-      <div class="mb-5 bg-slate-950 p-3 rounded-2xl border border-slate-800">
+      <!-- Crypto Payment Badge -->
+      <div class="mb-5 bg-slate-950 p-3.5 rounded-2xl border border-slate-800">
         <div class="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
-          <span>Ödeme Yöntemi</span>
+          <span class="flex items-center gap-1.5 text-amber-300">
+            <i class="fa-solid fa-bolt text-amber-400"></i>
+            Kripto ile Güvenli Ödeme
+          </span>
           <span class="text-[10px] text-emerald-400 flex items-center gap-1">
-            <i class="fa-solid fa-lock"></i> 256-Bit SSL Korumalı
+            <i class="fa-solid fa-shield-halved"></i> Otomatik Bakiye
           </span>
         </div>
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <button type="button" class="py-2 px-3 rounded-xl bg-slate-800 border border-amber-500 text-amber-300 font-semibold flex items-center justify-center gap-2">
-            <i class="fa-regular fa-credit-card"></i> Kredi Kartı / POS
-          </button>
-          <button type="button" class="py-2 px-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 font-semibold flex items-center justify-center gap-2">
-            <i class="fa-brands fa-bitcoin"></i> Kripto (USDT)
-          </button>
+        <div class="flex items-center justify-between gap-1 p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-300">
+          <span class="flex items-center gap-1 font-semibold"><i class="fa-solid fa-coins text-emerald-400"></i> USDT</span>
+          <span class="text-slate-600">•</span>
+          <span class="flex items-center gap-1 font-semibold"><i class="fa-brands fa-ethereum text-purple-400"></i> SOL</span>
+          <span class="text-slate-600">•</span>
+          <span class="flex items-center gap-1 font-semibold"><i class="fa-solid fa-bolt text-rose-400"></i> TRX</span>
+          <span class="text-slate-600">•</span>
+          <span class="flex items-center gap-1 font-semibold"><i class="fa-brands fa-bitcoin text-amber-400"></i> BTC</span>
+          <span class="text-slate-600">•</span>
+          <span class="flex items-center gap-1 font-semibold text-cyan-400">LTC</span>
         </div>
+        <p class="text-[10px] text-slate-400 mt-2 text-center">
+          QR kodu okutun veya adresi kopyalayın. Transfer onaylandığı an tıklarınız otomatik yüklenir.
+        </p>
       </div>
 
       <button id="confirmBuyBtn" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-lg shadow-emerald-500/20 transition-all active:scale-98 flex items-center justify-center gap-2">
-        <i class="fa-solid fa-check"></i>
+        <i class="fa-solid fa-bolt"></i>
         <span id="buyButtonText">10 Tık Al ($1.00)</span>
       </button>
     </div>

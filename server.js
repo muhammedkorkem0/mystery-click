@@ -27,13 +27,9 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Middleware for JSON
-app.use(express.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf;
-  }
-}));
-
+// Middleware for JSON & URL-encoded (OxaPay can send JSON or form-urlencoded)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Broadcast message to all connected clients via WebSocket
@@ -49,7 +45,7 @@ function broadcast(data) {
 
 // REST APIs
 
-// 0. Live Feed Poll Endpoint (Essential for Vercel fallback)
+// 0. Live Feed Poll Endpoint (For Vercel support)
 app.get('/api/feed', async (req, res) => {
   try {
     const initState = await db.getInitialState();
@@ -89,7 +85,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 2. Lemon Squeezy Checkout Creation / Buy Clicks
+// 2. OxaPay Crypto Checkout Creation
 app.post('/api/clicks/create-checkout', async (req, res) => {
   try {
     const { email, packageAmount } = req.body;
@@ -103,112 +99,90 @@ app.post('/api/clicks/create-checkout', async (req, res) => {
       return res.status(400).json({ error: 'Kullanıcı e-posta adresi eksik.' });
     }
 
-    const apiKey = process.env.LEMON_SQUEEZY_API_KEY;
-    const storeId = process.env.LEMON_SQUEEZY_STORE_ID;
-    let variantId = process.env[`LEMON_VARIANT_${amount}_CLICKS`];
+    const merchantKey = process.env.OXAPAY_MERCHANT_KEY;
+    const usdPrice = (amount * 0.10).toFixed(2); // 10 clicks = $1.00, 50 = $5.00, etc.
 
-    if (apiKey && storeId && variantId) {
-      const response = await fetch('https://api.lemonsqueezy.com/v1/checkouts', {
+    // If OxaPay Merchant Key is configured, create live crypto invoice
+    if (merchantKey && merchantKey.trim() !== '') {
+      const orderId = `ORD_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+      
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'mystery-click.vercel.app';
+      const protocol = host.includes('localhost') ? 'http' : 'https';
+      const callbackUrl = `${protocol}://${host}/api/payments/oxapay-webhook`;
+      const returnUrl = `${protocol}://${host}/?payment=success`;
+
+      const response = await fetch('https://api.oxapay.com/merchants/request', {
         method: 'POST',
-        headers: {
-          'Accept': 'application/vnd.api+json',
-          'Content-Type': 'application/vnd.api+json',
-          'Authorization': `Bearer ${apiKey}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          data: {
-            type: 'checkouts',
-            attributes: {
-              checkout_data: {
-                email: cleanEmail,
-                custom: {
-                  email: cleanEmail,
-                  package_amount: amount.toString()
-                }
-              }
-            },
-            relationships: {
-              store: {
-                data: {
-                  type: 'stores',
-                  id: storeId.toString()
-                }
-              },
-              variant: {
-                data: {
-                  type: 'variants',
-                  id: variantId.toString()
-                }
-              }
-            }
-          }
+          merchant: merchantKey,
+          amount: parseFloat(usdPrice),
+          currency: 'USD',
+          orderId: orderId,
+          email: cleanEmail,
+          description: `${amount} Clicks Package for ${cleanEmail}`,
+          callbackUrl: callbackUrl,
+          returnUrl: returnUrl,
+          lifeTime: 60 // 60 minutes payment window
         })
       });
 
       const json = await response.json();
-      if (!response.ok) {
-        console.error('Lemon Squeezy API error:', json);
-        return res.status(400).json({ error: 'Lemon Squeezy ödeme sayfası oluşturulamadı.' });
-      }
 
-      const checkoutUrl = json.data.attributes.url;
-      return res.json({ success: true, checkoutUrl });
+      if (json.result === 100 && json.payLink) {
+        return res.json({ success: true, checkoutUrl: json.payLink });
+      } else {
+        console.error('OxaPay request error:', json);
+        return res.status(400).json({ error: json.message || 'Kripto ödeme sayfası oluşturulamadı.' });
+      }
     }
 
-    // FALLBACK / DEMO SIMULATION (If Lemon Squeezy API keys are not filled yet)
+    // FALLBACK / TEST MODE (If merchant key not filled yet)
     const result = await db.buyClicks(cleanEmail, amount);
     return res.json({
       success: true,
       mode: 'simulation',
       added: amount,
       newBalance: result.newBalance,
-      message: 'Lemon Squeezy anahtarları henüz girilmediği için test modunda tık bakiyesi yüklendi.'
+      message: 'OxaPay anahtarı henüz girilmediği için test modunda tık yüklendi.'
     });
 
   } catch (err) {
-    console.error('Checkout error:', err);
+    console.error('OxaPay Checkout error:', err);
     return res.status(500).json({ error: err.message || 'Ödeme başlatılamadı.' });
   }
 });
 
-// 3. Lemon Squeezy Webhook Listener
-app.post('/api/payments/lemon-webhook', async (req, res) => {
+// 3. OxaPay Webhook Listener (Instant balance crediting on blockchain confirmation)
+app.post('/api/payments/oxapay-webhook', async (req, res) => {
   try {
-    const webhookSecret = process.env.LEMON_SQUEEZY_WEBHOOK_SECRET;
-    const signature = req.headers['x-signature'];
+    const data = req.body;
+    console.log('⚡ OxaPay Webhook geldi:', data);
 
-    if (webhookSecret && signature) {
-      const hmac = crypto.createHmac('sha256', webhookSecret);
-      const digest = hmac.update(req.rawBody).digest('hex');
-      if (signature !== digest) {
-        return res.status(401).send('Geçersiz webhook imzası.');
-      }
-    }
+    // OxaPay sends status === 'Paid' or 'Complete'
+    if (data.status === 'Paid' || data.status === 'Complete') {
+      const email = data.email;
+      const amountUsd = parseFloat(data.amount) || 1.0;
+      
+      // Calculate clicks purchased from USD amount ($0.10 per click)
+      const clicksToAdd = Math.round(amountUsd / 0.10);
 
-    const event = req.body;
-    const eventName = event.meta ? event.meta.event_name : null;
-
-    if (eventName === 'order_created') {
-      const customData = event.meta.custom_data || {};
-      const userEmail = customData.email || event.data.attributes.user_email;
-      const packageAmount = parseInt(customData.package_amount, 10) || 10;
-
-      if (userEmail) {
-        console.log(`💳 Lemon Squeezy ödemesi: ${userEmail} -> ${packageAmount} tık`);
-        await db.buyClicks(userEmail, packageAmount);
+      if (email && clicksToAdd >= 10) {
+        console.log(`💰 Kripto ödemesi onaylandı: ${email} -> +${clicksToAdd} tık ($${amountUsd})`);
+        await db.buyClicks(email, clicksToAdd);
 
         broadcast({
           type: 'PAYMENT_SUCCESS',
-          email: userEmail,
-          clicksAdded: packageAmount
+          email: email,
+          clicksAdded: clicksToAdd
         });
       }
     }
 
-    return res.status(200).json({ received: true });
+    return res.send('OK');
   } catch (err) {
-    console.error('Webhook error:', err);
-    return res.status(500).send('Webhook işleme hatası.');
+    console.error('OxaPay Webhook error:', err);
+    return res.status(500).send('Webhook error');
   }
 });
 
@@ -246,7 +220,7 @@ app.post('/api/click', async (req, res) => {
   }
 });
 
-// 5. Secure Admin Counter Maintenance (Protected with ADMIN_SECRET)
+// 5. Secure Admin Counter Maintenance
 app.post('/api/admin/simulate-near-target', async (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (!process.env.ADMIN_SECRET || adminKey !== process.env.ADMIN_SECRET) {
@@ -277,7 +251,7 @@ if (wss) {
   });
 }
 
-// Start Server if local / standard container
+// Start Server if local
 if (!process.env.VERCEL) {
   (async () => {
     await db.init();
