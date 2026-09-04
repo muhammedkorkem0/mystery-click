@@ -20,7 +20,7 @@ const clickLimiter = rateLimit({
   max: 8,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Çok hızlı tıklıyorsunuz! Bot koruması devrede. Lütfen yavaşlayın.' }
+  message: { error: 'You are clicking too fast! Bot protection active. Please slow down.' }
 });
 
 // 2. Auth Login Rate Limiter (Max 15 attempts per minute per IP)
@@ -29,7 +29,7 @@ const authLimiter = rateLimit({
   max: 15,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Çok fazla giriş denemesi yapıldı. Lütfen 1 dakika sonra tekrar deneyin.' }
+  message: { error: 'Too many sign in attempts. Please try again in 1 minute.' }
 });
 
 // 3. Checkout Rate Limiter (Max 12 invoice creations per minute per IP)
@@ -38,7 +38,7 @@ const checkoutLimiter = rateLimit({
   max: 12,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Ödeme isteği limiti aşıldı. Lütfen biraz bekleyin.' }
+  message: { error: 'Payment request limit exceeded. Please wait a moment.' }
 });
 
 // --- SESSION TOKEN HELPERS (HMAC-SHA256 Signed Tokens) ---
@@ -147,12 +147,12 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, nickname } = req.body;
     if (!email || !nickname) {
-      return res.status(400).json({ error: 'Gmail ve Nickname zorunludur.' });
+      return res.status(400).json({ error: 'Email and Nickname are required.' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail.includes('@')) {
-      return res.status(400).json({ error: 'Geçerli bir e-posta adresi giriniz.' });
+      return res.status(400).json({ error: 'Please enter a valid email address.' });
     }
 
     const user = await db.getOrCreateUser(cleanEmail, nickname);
@@ -169,7 +169,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    return res.status(500).json({ error: 'Giriş sırasında bir hata oluştu.' });
+    return res.status(500).json({ error: 'An error occurred during sign in.' });
   }
 });
 
@@ -179,12 +179,12 @@ app.post('/api/clicks/create-checkout', checkoutLimiter, async (req, res) => {
     const { email, packageAmount } = req.body;
     const amount = parseInt(packageAmount, 10);
     if (isNaN(amount) || amount < 10) {
-      return res.status(400).json({ error: 'Minimum satın alma 10 click (1.00$) olmalıdır.' });
+      return res.status(400).json({ error: 'Minimum purchase is 10 clicks ($1.00).' });
     }
 
     const cleanEmail = email ? email.trim().toLowerCase() : null;
     if (!cleanEmail) {
-      return res.status(400).json({ error: 'Kullanıcı e-posta adresi eksik.' });
+      return res.status(400).json({ error: 'User email address is missing.' });
     }
 
     const apiKey = process.env.NOWPAYMENTS_API_KEY || '6CW3604-M4Q4K3S-GN7N6QM-EY3BEK9';
@@ -210,7 +210,7 @@ app.post('/api/clicks/create-checkout', checkoutLimiter, async (req, res) => {
           price_amount: parseFloat(usdPrice),
           price_currency: 'usd',
           order_id: orderId,
-          order_description: `${amount} Tık Paketi (Mystery Click - ${cleanEmail})`,
+          order_description: `${amount} Clicks Pack (Mystery Click - ${cleanEmail})`,
           ipn_callback_url: callbackUrl,
           success_url: successUrl,
           cancel_url: cancelUrl
@@ -223,7 +223,7 @@ app.post('/api/clicks/create-checkout', checkoutLimiter, async (req, res) => {
         return res.json({ success: true, checkoutUrl: json.invoice_url });
       } else {
         console.error('NOWPayments invoice error:', json);
-        return res.status(400).json({ error: json.message || 'Kripto ödeme faturası oluşturulamadı.' });
+        return res.status(400).json({ error: json.message || 'Failed to create crypto payment invoice.' });
       }
     }
 
@@ -234,12 +234,12 @@ app.post('/api/clicks/create-checkout', checkoutLimiter, async (req, res) => {
       mode: 'simulation',
       added: amount,
       newBalance: result.newBalance,
-      message: 'Test modunda tık yüklendi.'
+      message: 'Test clicks loaded.'
     });
 
   } catch (err) {
     console.error('NOWPayments Checkout error:', err);
-    return res.status(500).json({ error: err.message || 'Ödeme başlatılamadı.' });
+    return res.status(500).json({ error: err.message || 'Could not initiate payment.' });
   }
 });
 
@@ -247,7 +247,7 @@ app.post('/api/clicks/create-checkout', checkoutLimiter, async (req, res) => {
 app.post('/api/payments/nowpayments-webhook', async (req, res) => {
   try {
     const data = req.body;
-    console.log('⚡ NOWPayments IPN bildirimi geldi:', data);
+    console.log('⚡ NOWPayments IPN received:', data);
 
     const paymentId = data.payment_id;
     const orderId = data.order_id || '';
@@ -263,20 +263,20 @@ app.post('/api/payments/nowpayments-webhook', async (req, res) => {
         });
         if (verifyRes.ok) {
           const verifiedData = await verifyRes.json();
-          console.log(`🔒 NOWPayments Resmi Doğrulama Sonucu [${paymentId}]:`, verifiedData.payment_status);
+          console.log(`🔒 NOWPayments Official Verification [${paymentId}]:`, verifiedData.payment_status);
           if (verifiedData.payment_status === 'finished' || verifiedData.payment_status === 'confirmed') {
             isVerified = true;
             data.payment_status = verifiedData.payment_status;
             data.price_amount = verifiedData.price_amount || data.price_amount;
           } else {
-            console.log(`ℹ️ Ödeme henüz tamamlanmadı (${verifiedData.payment_status}), işlem bekleniyor.`);
+            console.log(`ℹ️ Payment not yet completed (${verifiedData.payment_status}), waiting.`);
             return res.status(200).send('Payment pending');
           }
         } else {
-          console.warn(`⚠️ NOWPayments API sorgusu başarısız oldu (${verifyRes.status}).`);
+          console.warn(`⚠️ NOWPayments API query failed (${verifyRes.status}).`);
         }
       } catch (verifyErr) {
-        console.error('NOWPayments API doğrulama hatası:', verifyErr.message);
+        console.error('NOWPayments API verification error:', verifyErr.message);
       }
     }
 
@@ -291,8 +291,8 @@ app.post('/api/payments/nowpayments-webhook', async (req, res) => {
 
     // If both verifications failed, reject fake/unverified webhook
     if (!isVerified) {
-      console.warn('⛔ Sahte veya doğrulanamayan webhook isteği engellendi!');
-      return res.status(400).json({ error: 'Doğrulanamayan webhook isteği.' });
+      console.warn('⛔ Fake or unverified webhook rejected!');
+      return res.status(400).json({ error: 'Unverified webhook request.' });
     }
 
     // Process payment if verified
@@ -316,9 +316,9 @@ app.post('/api/payments/nowpayments-webhook', async (req, res) => {
     if (userEmail && packageAmount >= 10) {
       const creditResult = await db.buyClicks(userEmail, packageAmount, paymentId, 'crypto_nowpayments');
       if (creditResult.alreadyProcessed) {
-        console.log(`ℹ️ Ödeme #${paymentId} zaten işlenmiş, mükerrer yükleme yapılmadı.`);
+        console.log(`ℹ️ Payment #${paymentId} already processed.`);
       } else {
-        console.log(`💰 Kripto ödemesi başarıyla tamamlandı ve onaylandı: ${userEmail} -> +${packageAmount} tık`);
+        console.log(`💰 Payment verified: ${userEmail} -> +${packageAmount} clicks`);
         broadcast({
           type: 'PAYMENT_SUCCESS',
           email: userEmail,
@@ -339,7 +339,7 @@ app.post('/api/click', clickLimiter, async (req, res) => {
   try {
     const { email, count = 1 } = req.body;
     if (!email) {
-      return res.status(400).json({ error: 'E-posta adresi zorunludur.' });
+      return res.status(400).json({ error: 'Email address is required.' });
     }
 
     const cleanEmail = email.trim().toLowerCase();
@@ -351,12 +351,12 @@ app.post('/api/click', clickLimiter, async (req, res) => {
       : req.body.token;
 
     if (!token) {
-      return res.status(401).json({ error: 'Yetkisiz işlem: Oturum tokeni bulunamadı. Lütfen tekrar giriş yapın.' });
+      return res.status(401).json({ error: 'Unauthorized: Session token missing. Please sign in again.' });
     }
 
     const verifiedUser = verifyAuthToken(token);
     if (!verifiedUser || verifiedUser.email !== cleanEmail) {
-      return res.status(403).json({ error: 'Yetkisiz erişim: Oturum süresi dolmuş veya e-posta ile uyuşmuyor.' });
+      return res.status(403).json({ error: 'Unauthorized: Session expired or mismatched email address.' });
     }
 
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
@@ -384,7 +384,7 @@ app.post('/api/click', clickLimiter, async (req, res) => {
     });
   } catch (err) {
     console.error('Click error:', err);
-    return res.status(400).json({ error: err.message || 'Tıklama işlenemedi.' });
+    return res.status(400).json({ error: err.message || 'Failed to process click.' });
   }
 });
 
@@ -392,7 +392,7 @@ app.post('/api/click', clickLimiter, async (req, res) => {
 app.post('/api/admin/simulate-near-target', async (req, res) => {
   const adminKey = req.headers['x-admin-key'];
   if (!process.env.ADMIN_SECRET || adminKey !== process.env.ADMIN_SECRET) {
-    return res.status(403).json({ error: 'Yetkisiz erişim.' });
+    return res.status(403).json({ error: 'Unauthorized access.' });
   }
   try {
     const { targetClicks = 5000000, currentClicks = 0 } = req.body;

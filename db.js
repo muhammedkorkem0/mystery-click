@@ -158,7 +158,7 @@ class DatabaseManager {
           RETURNING id, email, nickname, balance_clicks as balance;
         `, [amount, usdAmount, cleanEmail]);
 
-        if (userRes.rows.length === 0) throw new Error('Kullanıcı bulunamadı.');
+        if (userRes.rows.length === 0) throw new Error('User not found.');
 
         const user = userRes.rows[0];
 
@@ -187,7 +187,7 @@ class DatabaseManager {
     }
 
     const user = this.localState.users[cleanEmail];
-    if (!user) throw new Error('Kullanıcı bulunamadı.');
+    if (!user) throw new Error('User not found.');
     user.balance += amount;
     if (paymentId) {
       this.localState.processedPayments.push(String(paymentId));
@@ -218,7 +218,7 @@ class DatabaseManager {
 
         if (userRes.rows.length === 0) {
           await client.query('ROLLBACK');
-          throw new Error('Yetersiz bakiye! Lütfen tık satın alın.');
+          throw new Error('Insufficient balance! Please purchase clicks.');
         }
 
         const user = userRes.rows[0];
@@ -247,7 +247,7 @@ class DatabaseManager {
 
           if (gameRes.rows[0].winner_email) {
             await client.query('ROLLBACK');
-            throw new Error('Büyük ödül 5.000.000 tık tamamlandı ve kazanan belirlendi!');
+            throw new Error('The 5,000,000 grand prize has been won and the winner has been determined!');
           }
         }
 
@@ -317,9 +317,9 @@ class DatabaseManager {
 
     // Local Fallback
     const user = this.localState.users[cleanEmail];
-    if (!user) throw new Error('Kullanıcı bulunamadı.');
-    if (user.balance < clickCount) throw new Error('Yetersiz bakiye!');
-    if (this.localState.winner) throw new Error('Büyük ödül tamamlandı!');
+    if (!user) throw new Error('User not found.');
+    if (user.balance < clickCount) throw new Error('Insufficient balance! Please purchase clicks.');
+    if (this.localState.winner) throw new Error('The 5,000,000 grand prize has already been won!');
 
     user.balance -= clickCount;
     user.totalClicks += clickCount;

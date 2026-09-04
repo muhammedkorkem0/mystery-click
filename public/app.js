@@ -259,6 +259,7 @@ function addFeedItem(act, isNew = false) {
                          'text-cyan-400 bg-cyan-500/10 border-cyan-500/30';
 
   const timeAgo = formatTimeAgo(act.time || Date.now());
+  const clickLabel = act.clicks > 1 ? 'clicks' : 'click';
 
   item.innerHTML = `
     <div class="flex items-center gap-2.5 min-w-0">
@@ -267,13 +268,13 @@ function addFeedItem(act, isNew = false) {
       </div>
       <div class="truncate">
         <span class="font-bold text-white">@${escapeHtml(act.nickname)}</span>
-        <span class="text-slate-400 ml-1">az önce</span>
-        <span class="font-extrabold text-amber-300 ml-1">${act.clicks} click</span> yaptı!
+        <span class="text-slate-400 ml-1">just landed</span>
+        <span class="font-extrabold text-amber-300 ml-1">${act.clicks} ${clickLabel}!</span>
       </div>
     </div>
     <div class="flex items-center gap-2 shrink-0">
       <span class="px-2 py-0.5 rounded-md border text-[10px] font-bold ${clickBadgeColor}">
-        +${act.clicks} Tık
+        +${act.clicks} ${act.clicks > 1 ? 'Clicks' : 'Click'}
       </span>
       <span class="text-[10px] text-slate-400 hidden sm:inline">${timeAgo}</span>
     </div>
@@ -289,10 +290,12 @@ function addFeedItem(act, isNew = false) {
 
 function formatTimeAgo(ts) {
   const diffSec = Math.floor((Date.now() - ts) / 1000);
-  if (diffSec < 5) return 'şimdi';
-  if (diffSec < 60) return `${diffSec}sn önce`;
+  if (diffSec < 5) return 'just now';
+  if (diffSec < 60) return `${diffSec}s ago`;
   const diffMin = Math.floor(diffSec / 60);
-  return `${diffMin}dk önce`;
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHours = Math.floor(diffMin / 60);
+  return `${diffHours}h ago`;
 }
 
 function escapeHtml(str) {
@@ -324,7 +327,7 @@ async function loginUser(email, nickname, showNotice = true) {
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error || 'Giriş yapılamadı.');
+      alert(data.error || 'Sign in failed.');
       return;
     }
 
@@ -344,7 +347,7 @@ async function loginUser(email, nickname, showNotice = true) {
     }
   } catch (err) {
     console.error('Login error:', err);
-    alert('Bağlantı hatası oluştu.');
+    alert('Connection error occurred.');
   }
 }
 
@@ -360,7 +363,7 @@ function updateUserUI() {
           </div>
           <div class="text-[10px] text-slate-400 truncate max-w-[110px]">${state.user.email}</div>
         </div>
-        <button id="logoutBtn" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors" title="Çıkış Yap">
+        <button id="logoutBtn" class="p-1.5 text-slate-400 hover:text-rose-400 transition-colors" title="Sign Out">
           <i class="fa-solid fa-arrow-right-from-bracket text-xs"></i>
         </button>
       </div>
@@ -378,7 +381,7 @@ function updateUserUI() {
     userBadgeArea.innerHTML = `
       <button id="openLoginModalBtn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2 active:scale-95">
         <i class="fa-brands fa-google"></i>
-        <span>Giriş Yap</span>
+        <span>Sign In</span>
       </button>
     `;
     document.getElementById('openLoginModalBtn').addEventListener('click', () => {
@@ -433,14 +436,14 @@ theMysteryButton.addEventListener('click', async (e) => {
     const data = await res.json();
     if (!res.ok) {
       if (res.status === 401 || res.status === 403) {
-        alert('Oturum süreniz doldu veya geçersiz. Güvenliğiniz için lütfen tekrar giriş yapın.');
+        alert('Your session has expired or is invalid. For your security, please sign in again.');
         localStorage.removeItem('mystery_user');
         state.user = null;
         updateUserUI();
         loginModal.classList.remove('hidden');
         return;
       }
-      alert(data.error || 'İşlem gerçekleştirilemedi.');
+      alert(data.error || 'Action could not be completed.');
       return;
     }
 
@@ -486,7 +489,7 @@ packageRadios.forEach(radio => {
   radio.addEventListener('change', (e) => {
     state.selectedPackage = parseInt(e.target.value, 10);
     const price = (state.selectedPackage * 0.10).toFixed(2);
-    buyButtonText.textContent = `${state.selectedPackage} Tık Al ($${price})`;
+    buyButtonText.textContent = `Buy ${state.selectedPackage} Clicks ($${price})`;
   });
 });
 
@@ -498,7 +501,7 @@ confirmBuyBtn.addEventListener('click', async () => {
   }
 
   confirmBuyBtn.disabled = true;
-  confirmBuyBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Ödeme Başlatılıyor...`;
+  confirmBuyBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Preparing Checkout...`;
 
   try {
     const res = await fetch('/api/clicks/create-checkout', {
@@ -512,7 +515,7 @@ confirmBuyBtn.addEventListener('click', async () => {
 
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error || 'Ödeme başlatılamadı.');
+      alert(data.error || 'Failed to initiate checkout.');
       return;
     }
 
@@ -538,11 +541,11 @@ confirmBuyBtn.addEventListener('click', async () => {
 
   } catch (err) {
     console.error('Buy error:', err);
-    alert('Ödeme sırasında bir hata oluştu.');
+    alert('An error occurred during payment.');
   } finally {
     confirmBuyBtn.disabled = false;
     const price = (state.selectedPackage * 0.10).toFixed(2);
-    confirmBuyBtn.innerHTML = `<i class="fa-solid fa-check"></i> <span id="buyButtonText">${state.selectedPackage} Tık Al ($${price})</span>`;
+    confirmBuyBtn.innerHTML = `<i class="fa-solid fa-check"></i> <span id="buyButtonText">Buy ${state.selectedPackage} Clicks ($${price})</span>`;
   }
 });
 
@@ -642,7 +645,7 @@ function initElapsedTimeCounter() {
       months--;
     }
 
-    el.textContent = `${months} Ay ${days} Gün ${hours} Saat ${minutes} Dk ${seconds} Sn`;
+    el.textContent = `${months} Months ${days} Days ${hours}h ${minutes}m ${seconds}s`;
   }
 
   tick();
