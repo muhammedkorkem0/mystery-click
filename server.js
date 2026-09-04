@@ -3,10 +3,95 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
+const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
 const db = require('./db');
 
 const app = express();
 const server = http.createServer(app);
+
+// Trust first proxy for accurate client IP identification on Vercel/proxies
+app.set('trust proxy', 1);
+
+// --- SECURITY & RATE LIMITING CONFIGURATION ---
+// 1. Click Rate Limiter (Max 8 requests per second per IP)
+const clickLimiter = rateLimit({
+  windowMs: 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Çok hızlı tıklıyorsunuz! Bot koruması devrede. Lütfen yavaşlayın.' }
+});
+
+// 2. Auth Login Rate Limiter (Max 15 attempts per minute per IP)
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 15,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Çok fazla giriş denemesi yapıldı. Lütfen 1 dakika sonra tekrar deneyin.' }
+});
+
+// 3. Checkout Rate Limiter (Max 12 invoice creations per minute per IP)
+const checkoutLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Ödeme isteği limiti aşıldı. Lütfen biraz bekleyin.' }
+});
+
+// --- SESSION TOKEN HELPERS (HMAC-SHA256 Signed Tokens) ---
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.JWT_SECRET || 'mystery_click_auth_secret_2026_super_secure_key_987';
+
+function generateAuthToken(email, nickname) {
+  const payload = {
+    email: email.trim().toLowerCase(),
+    nickname: (nickname || '').trim(),
+    exp: Date.now() + 30 * 24 * 60 * 60 * 1000 // 30 days
+  };
+  const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', AUTH_SECRET).update(data).digest('base64url');
+  return `${data}.${sig}`;
+}
+
+function verifyAuthToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 2) return null;
+  const [data, sig] = parts;
+  try {
+    const expectedSig = crypto.createHmac('sha256', AUTH_SECRET).update(data).digest('base64url');
+    if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig))) {
+      return null;
+    }
+    const payload = JSON.parse(Buffer.from(data, 'base64url').toString('utf8'));
+    if (payload.exp && payload.exp < Date.now()) {
+      return null; // Expired
+    }
+    return payload;
+  } catch (err) {
+    return null;
+  }
+}
+
+// --- NOWPAYMENTS IPN SIGNATURE VERIFIER ---
+function verifyNowpaymentsSignature(req, ipnSecret) {
+  const signature = req.headers['x-nowpayments-sig'];
+  if (!signature || !ipnSecret) return false;
+  try {
+    const sortedKeys = Object.keys(req.body).sort();
+    const sortedObj = {};
+    for (const key of sortedKeys) {
+      sortedObj[key] = req.body[key];
+    }
+    const payloadStr = JSON.stringify(sortedObj);
+    const hmac = crypto.createHmac('sha512', ipnSecret.trim()).update(payloadStr).digest('hex');
+    return hmac.toLowerCase() === signature.toLowerCase();
+  } catch (err) {
+    return false;
+  }
+}
 
 // In non-serverless environments, WebSocket server is initialized
 let wss = null;
@@ -57,8 +142,8 @@ app.get('/api/feed', async (req, res) => {
   }
 });
 
-// 1. User Login / Registration
-app.post('/api/auth/login', async (req, res) => {
+// 1. User Login / Registration (Rate Limited & Signed Token)
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, nickname } = req.body;
     if (!email || !nickname) {
@@ -72,9 +157,13 @@ app.post('/api/auth/login', async (req, res) => {
 
     const user = await db.getOrCreateUser(cleanEmail, nickname);
     const initData = await db.getInitialState();
+    const token = generateAuthToken(cleanEmail, user.nickname || nickname);
 
     return res.json({
-      user,
+      user: {
+        ...user,
+        token
+      },
       winner: initData.winner,
       recentActivity: initData.recentActivity
     });
@@ -84,8 +173,8 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 2. NOWPayments Crypto Invoice Creation
-app.post('/api/clicks/create-checkout', async (req, res) => {
+// 2. NOWPayments Crypto Invoice Creation (Rate Limited)
+app.post('/api/clicks/create-checkout', checkoutLimiter, async (req, res) => {
   try {
     const { email, packageAmount } = req.body;
     const amount = parseInt(packageAmount, 10);
@@ -154,37 +243,82 @@ app.post('/api/clicks/create-checkout', async (req, res) => {
   }
 });
 
-// 3. NOWPayments Webhook Listener (IPN - Instant balance crediting on payment)
+// 3. NOWPayments Webhook Listener (IPN - Secure 2-Layer Verification & Replay Protection)
 app.post('/api/payments/nowpayments-webhook', async (req, res) => {
   try {
     const data = req.body;
     console.log('⚡ NOWPayments IPN bildirimi geldi:', data);
 
-    // NOWPayments sends payment_status: 'finished', 'confirmed', 'sending', etc.
+    const paymentId = data.payment_id;
+    const orderId = data.order_id || '';
     const status = data.payment_status;
-    if (status === 'finished' || status === 'confirmed') {
-      const orderId = data.order_id || '';
-      let userEmail = null;
-      let packageAmount = 0;
+    const apiKey = process.env.NOWPAYMENTS_API_KEY || '6CW3604-M4Q4K3S-GN7N6QM-EY3BEK9';
+    let isVerified = false;
 
-      // Extract from orderId: MC_user%40gmail.com_10_timestamp
-      if (orderId.startsWith('MC_')) {
-        const parts = orderId.split('_');
-        if (parts.length >= 4) {
-          userEmail = decodeURIComponent(parts[1]);
-          packageAmount = parseInt(parts[2], 10);
+    // Layer 1: Verify directly with NOWPayments official API (Bulletproof verification)
+    if (paymentId && apiKey) {
+      try {
+        const verifyRes = await fetch(`https://api.nowpayments.io/v1/payment/${paymentId}`, {
+          headers: { 'x-api-key': apiKey.trim() }
+        });
+        if (verifyRes.ok) {
+          const verifiedData = await verifyRes.json();
+          console.log(`🔒 NOWPayments Resmi Doğrulama Sonucu [${paymentId}]:`, verifiedData.payment_status);
+          if (verifiedData.payment_status === 'finished' || verifiedData.payment_status === 'confirmed') {
+            isVerified = true;
+            data.payment_status = verifiedData.payment_status;
+            data.price_amount = verifiedData.price_amount || data.price_amount;
+          } else {
+            console.log(`ℹ️ Ödeme henüz tamamlanmadı (${verifiedData.payment_status}), işlem bekleniyor.`);
+            return res.status(200).send('Payment pending');
+          }
+        } else {
+          console.warn(`⚠️ NOWPayments API sorgusu başarısız oldu (${verifyRes.status}).`);
+        }
+      } catch (verifyErr) {
+        console.error('NOWPayments API doğrulama hatası:', verifyErr.message);
+      }
+    }
+
+    // Layer 2: Signature verification fallback (if IPN_SECRET is configured)
+    if (!isVerified && process.env.NOWPAYMENTS_IPN_SECRET) {
+      if (verifyNowpaymentsSignature(req, process.env.NOWPAYMENTS_IPN_SECRET)) {
+        if (status === 'finished' || status === 'confirmed') {
+          isVerified = true;
         }
       }
+    }
 
-      // Fallback calculation from price_amount ($0.10 per click)
-      if (!packageAmount && data.price_amount) {
-        packageAmount = Math.round(parseFloat(data.price_amount) / 0.10);
+    // If both verifications failed, reject fake/unverified webhook
+    if (!isVerified) {
+      console.warn('⛔ Sahte veya doğrulanamayan webhook isteği engellendi!');
+      return res.status(400).json({ error: 'Doğrulanamayan webhook isteği.' });
+    }
+
+    // Process payment if verified
+    let userEmail = null;
+    let packageAmount = 0;
+
+    // Extract from orderId: MC_user%40gmail.com_10_timestamp
+    if (orderId.startsWith('MC_')) {
+      const parts = orderId.split('_');
+      if (parts.length >= 4) {
+        userEmail = decodeURIComponent(parts[1]);
+        packageAmount = parseInt(parts[2], 10);
       }
+    }
 
-      if (userEmail && packageAmount >= 10) {
-        console.log(`💰 Kripto ödemesi başarıyla tamamlandı: ${userEmail} -> +${packageAmount} tık`);
-        await db.buyClicks(userEmail, packageAmount);
+    // Fallback calculation from price_amount ($0.10 per click)
+    if (!packageAmount && data.price_amount) {
+      packageAmount = Math.round(parseFloat(data.price_amount) / 0.10);
+    }
 
+    if (userEmail && packageAmount >= 10) {
+      const creditResult = await db.buyClicks(userEmail, packageAmount, paymentId, 'crypto_nowpayments');
+      if (creditResult.alreadyProcessed) {
+        console.log(`ℹ️ Ödeme #${paymentId} zaten işlenmiş, mükerrer yükleme yapılmadı.`);
+      } else {
+        console.log(`💰 Kripto ödemesi başarıyla tamamlandı ve onaylandı: ${userEmail} -> +${packageAmount} tık`);
         broadcast({
           type: 'PAYMENT_SUCCESS',
           email: userEmail,
@@ -200,13 +334,33 @@ app.post('/api/payments/nowpayments-webhook', async (req, res) => {
   }
 });
 
-// 4. Process Atomic Click
-app.post('/api/click', async (req, res) => {
+// 4. Process Atomic Click (Rate Limited & Session Token Protected)
+app.post('/api/click', clickLimiter, async (req, res) => {
   try {
     const { email, count = 1 } = req.body;
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    if (!email) {
+      return res.status(400).json({ error: 'E-posta adresi zorunludur.' });
+    }
 
-    const result = await db.processClick(email, count, ip);
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Authentication: Extract and verify token from Bearer header or body
+    const authHeader = req.headers['authorization'];
+    const token = (authHeader && authHeader.startsWith('Bearer '))
+      ? authHeader.slice(7)
+      : req.body.token;
+
+    if (!token) {
+      return res.status(401).json({ error: 'Yetkisiz işlem: Oturum tokeni bulunamadı. Lütfen tekrar giriş yapın.' });
+    }
+
+    const verifiedUser = verifyAuthToken(token);
+    if (!verifiedUser || verifiedUser.email !== cleanEmail) {
+      return res.status(403).json({ error: 'Yetkisiz erişim: Oturum süresi dolmuş veya e-posta ile uyuşmuyor.' });
+    }
+
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    const result = await db.processClick(cleanEmail, count, ip);
 
     // Broadcast via WS (if running)
     broadcast({

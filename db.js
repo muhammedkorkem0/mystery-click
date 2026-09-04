@@ -126,8 +126,8 @@ class DatabaseManager {
     return this.localState.users[cleanEmail];
   }
 
-  // 2. Buy Clicks (Purchase)
-  async buyClicks(email, amount) {
+  // 2. Buy Clicks (Purchase with Replay Protection)
+  async buyClicks(email, amount, paymentId = null, paymentMethod = 'crypto_nowpayments') {
     const cleanEmail = email.trim().toLowerCase();
     const usdAmount = (amount * 0.10).toFixed(2);
 
@@ -135,6 +135,20 @@ class DatabaseManager {
       const client = await this.pgPool.connect();
       try {
         await client.query('BEGIN');
+
+        // Replay Protection: check if transaction_id has already been processed
+        if (paymentId) {
+          const checkRes = await client.query(`
+            SELECT id FROM payments 
+            WHERE transaction_id = $1 AND payment_status = 'success';
+          `, [String(paymentId)]);
+
+          if (checkRes.rows.length > 0) {
+            console.log(`⚠️ Tekrarlanan ödeme engellendi (Replay Protection): ${paymentId}`);
+            await client.query('ROLLBACK');
+            return { success: true, alreadyProcessed: true };
+          }
+        }
         
         const userRes = await client.query(`
           UPDATE users 
@@ -149,9 +163,9 @@ class DatabaseManager {
         const user = userRes.rows[0];
 
         await client.query(`
-          INSERT INTO payments (user_id, email, clicks_purchased, amount_usd, payment_method, payment_status)
-          VALUES ($1, $2, $3, $4, 'simulation_pos', 'success');
-        `, [user.id, cleanEmail, amount, usdAmount]);
+          INSERT INTO payments (user_id, email, clicks_purchased, amount_usd, payment_method, payment_status, transaction_id)
+          VALUES ($1, $2, $3, $4, $5, 'success', $6);
+        `, [user.id, cleanEmail, amount, usdAmount, paymentMethod, paymentId ? String(paymentId) : null]);
 
         await client.query('COMMIT');
         return { success: true, added: amount, newBalance: user.balance };
@@ -164,9 +178,20 @@ class DatabaseManager {
     }
 
     // Local Fallback
+    if (!this.localState.processedPayments) {
+      this.localState.processedPayments = [];
+    }
+    if (paymentId && this.localState.processedPayments.includes(String(paymentId))) {
+      console.log(`⚠️ Yerel tekrarlanan ödeme engellendi: ${paymentId}`);
+      return { success: true, alreadyProcessed: true };
+    }
+
     const user = this.localState.users[cleanEmail];
     if (!user) throw new Error('Kullanıcı bulunamadı.');
     user.balance += amount;
+    if (paymentId) {
+      this.localState.processedPayments.push(String(paymentId));
+    }
     this.saveLocal();
     return { success: true, added: amount, newBalance: user.balance };
   }

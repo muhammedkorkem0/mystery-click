@@ -331,7 +331,8 @@ async function loginUser(email, nickname, showNotice = true) {
     state.user = data.user;
     localStorage.setItem('mystery_user', JSON.stringify({
       email: state.user.email,
-      nickname: state.user.nickname
+      nickname: state.user.nickname,
+      token: state.user.token
     }));
 
     updateUserUI();
@@ -414,17 +415,31 @@ theMysteryButton.addEventListener('click', async (e) => {
   setTimeout(() => theMysteryButton.classList.remove('pressed'), 120);
 
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (state.user.token) {
+      headers['Authorization'] = `Bearer ${state.user.token}`;
+    }
+
     const res = await fetch('/api/click', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         email: state.user.email,
-        count: clicksToUse
+        count: clicksToUse,
+        token: state.user.token
       })
     });
 
     const data = await res.json();
     if (!res.ok) {
+      if (res.status === 401 || res.status === 403) {
+        alert('Oturum süreniz doldu veya geçersiz. Güvenliğiniz için lütfen tekrar giriş yapın.');
+        localStorage.removeItem('mystery_user');
+        state.user = null;
+        updateUserUI();
+        loginModal.classList.remove('hidden');
+        return;
+      }
       alert(data.error || 'İşlem gerçekleştirilemedi.');
       return;
     }
