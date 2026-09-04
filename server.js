@@ -98,7 +98,7 @@ app.post('/api/clicks/create-checkout', async (req, res) => {
       return res.status(400).json({ error: 'Kullanıcı e-posta adresi eksik.' });
     }
 
-    const apiKey = process.env.NOWPAYMENTS_API_KEY;
+    const apiKey = process.env.NOWPAYMENTS_API_KEY || '6CW3604-M4Q4K3S-GN7N6QM-EY3BEK9';
     const usdPrice = (amount * 0.10).toFixed(2); // 10 clicks = $1.00
 
     // If NOWPayments API Key is configured, create live crypto invoice
