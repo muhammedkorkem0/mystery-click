@@ -606,8 +606,41 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Live Elapsed Time Counter (Starts 11 Months 3 Days ago)
+function initElapsedTimeCounter() {
+  const el = document.getElementById('elapsedTimeText');
+  if (!el) return;
+
+  const startDate = new Date('2025-10-01T08:14:22');
+
+  function tick() {
+    const now = new Date();
+    let years = now.getFullYear() - startDate.getFullYear();
+    let months = now.getMonth() - startDate.getMonth() + (years * 12);
+    let days = now.getDate() - startDate.getDate();
+    let hours = now.getHours() - startDate.getHours();
+    let minutes = now.getMinutes() - startDate.getMinutes();
+    let seconds = now.getSeconds() - startDate.getSeconds();
+
+    if (seconds < 0) { seconds += 60; minutes--; }
+    if (minutes < 0) { minutes += 60; hours--; }
+    if (hours < 0) { hours += 24; days--; }
+    if (days < 0) {
+      const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      days += prevMonth.getDate();
+      months--;
+    }
+
+    el.textContent = `${months} Ay ${days} Gün ${hours} Saat ${minutes} Dk ${seconds} Sn`;
+  }
+
+  tick();
+  setInterval(tick, 1000);
+}
+
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
+  initElapsedTimeCounter();
   initWebSocket();
   checkStoredUser();
   updateUserUI();

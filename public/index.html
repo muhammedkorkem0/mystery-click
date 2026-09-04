@@ -20,6 +20,20 @@
     <div class="absolute top-10 right-10 w-[400px] h-[400px] bg-purple-500/10 rounded-full blur-[120px]"></div>
   </div>
 
+  <!-- Top Live Elapsed Time Bar (11 Ay 3 Gün...) -->
+  <div class="w-full bg-gradient-to-r from-amber-500/10 via-rose-500/10 to-amber-500/10 border-b border-amber-500/20 py-2 px-4 text-center z-50 relative">
+    <div class="max-w-5xl mx-auto flex items-center justify-center flex-wrap gap-2 text-xs">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold text-[11px]">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> CANLI SÜREÇ
+      </span>
+      <span class="text-slate-400 font-medium">Büyük Ödül İçin Geçen Süre:</span>
+      <span id="elapsedTimeText" class="font-extrabold text-amber-300 font-mono tracking-wider bg-amber-500/10 px-2.5 py-0.5 rounded-md border border-amber-500/20 shadow-sm">
+        11 Ay 3 Gün 12 Saat ...
+      </span>
+      <span class="text-slate-400 hidden sm:inline">• 5.000.000'uncu Tık Henüz Vurulmadı!</span>
+    </div>
+  </div>
+
   <!-- Top Navigation Bar -->
   <header class="w-full border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-40 px-4 py-3 sm:px-8">
     <div class="max-w-6xl mx-auto flex items-center justify-between">
