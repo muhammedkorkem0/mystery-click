@@ -242,17 +242,17 @@
         <p class="text-xs text-slate-400 mt-1">1 Tık = 10 Cent ($0.10) • Minimum Satın Alma: 10 Tık ($1.00)</p>
       </div>
 
-      <!-- Package Selection -->
-      <div class="grid grid-cols-2 gap-3 mb-5">
+      <!-- Package Selection (10, 50, 100 Clicks) -->
+      <div class="grid grid-cols-3 gap-2.5 sm:gap-3 mb-5">
         
         <!-- Package 10 (Minimum) -->
         <label class="cursor-pointer">
           <input type="radio" name="clickPackage" value="10" checked class="peer sr-only">
-          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400">Başlangıç (Min)</span>
+          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-400">Min</span>
             <div>
-              <div class="text-2xl font-black text-white">10 <span class="text-xs font-normal text-slate-400">Tık</span></div>
-              <div class="text-sm font-bold text-amber-400">$1.00</div>
+              <div class="text-xl sm:text-2xl font-black text-white">10 <span class="text-[10px] font-normal text-slate-400">Tık</span></div>
+              <div class="text-xs sm:text-sm font-bold text-amber-400">$1.00</div>
             </div>
           </div>
         </label>
@@ -260,11 +260,11 @@
         <!-- Package 50 -->
         <label class="cursor-pointer">
           <input type="radio" name="clickPackage" value="50" class="peer sr-only">
-          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
+          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
             <span class="text-[10px] font-bold uppercase tracking-wider text-cyan-400">Popüler</span>
             <div>
-              <div class="text-2xl font-black text-white">50 <span class="text-xs font-normal text-slate-400">Tık</span></div>
-              <div class="text-sm font-bold text-amber-400">$5.00</div>
+              <div class="text-xl sm:text-2xl font-black text-white">50 <span class="text-[10px] font-normal text-slate-400">Tık</span></div>
+              <div class="text-xs sm:text-sm font-bold text-amber-400">$5.00</div>
             </div>
           </div>
         </label>
@@ -272,23 +272,11 @@
         <!-- Package 100 -->
         <label class="cursor-pointer">
           <input type="radio" name="clickPackage" value="100" class="peer sr-only">
-          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
+          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
             <span class="text-[10px] font-bold uppercase tracking-wider text-purple-400">Avantajlı</span>
             <div>
-              <div class="text-2xl font-black text-white">100 <span class="text-xs font-normal text-slate-400">Tık</span></div>
-              <div class="text-sm font-bold text-amber-400">$10.00</div>
-            </div>
-          </div>
-        </label>
-
-        <!-- Package 500 -->
-        <label class="cursor-pointer">
-          <input type="radio" name="clickPackage" value="500" class="peer sr-only">
-          <div class="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 peer-checked:border-amber-500 peer-checked:bg-amber-500/10 transition-all flex flex-col justify-between h-28 relative">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-rose-400">VIP Avcı</span>
-            <div>
-              <div class="text-2xl font-black text-white">500 <span class="text-xs font-normal text-slate-400">Tık</span></div>
-              <div class="text-sm font-bold text-amber-400">$50.00</div>
+              <div class="text-xl sm:text-2xl font-black text-white">100 <span class="text-[10px] font-normal text-slate-400">Tık</span></div>
+              <div class="text-xs sm:text-sm font-bold text-amber-400">$10.00</div>
             </div>
           </div>
         </label>
