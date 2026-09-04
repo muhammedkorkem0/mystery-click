@@ -123,7 +123,7 @@ app.post('/api/clicks/create-checkout', async (req, res) => {
                 email: cleanEmail,
                 custom: {
                   email: cleanEmail,
-                  package_amount: amount
+                  package_amount: amount.toString()
                 }
               }
             },
