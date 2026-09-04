@@ -3,7 +3,6 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
-const crypto = require('crypto');
 const db = require('./db');
 
 const app = express();
@@ -27,7 +26,7 @@ app.use(async (req, res, next) => {
   next();
 });
 
-// Middleware for JSON & URL-encoded (OxaPay can send JSON or form-urlencoded)
+// Middleware for JSON & URL-encoded
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -85,7 +84,7 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// 2. OxaPay Crypto Checkout Creation
+// 2. NOWPayments Crypto Invoice Creation
 app.post('/api/clicks/create-checkout', async (req, res) => {
   try {
     const { email, packageAmount } = req.body;
@@ -99,89 +98,104 @@ app.post('/api/clicks/create-checkout', async (req, res) => {
       return res.status(400).json({ error: 'Kullanıcı e-posta adresi eksik.' });
     }
 
-    const merchantKey = process.env.OXAPAY_MERCHANT_KEY;
-    const usdPrice = (amount * 0.10).toFixed(2); // 10 clicks = $1.00, 50 = $5.00, etc.
+    const apiKey = process.env.NOWPAYMENTS_API_KEY;
+    const usdPrice = (amount * 0.10).toFixed(2); // 10 clicks = $1.00
 
-    // If OxaPay Merchant Key is configured, create live crypto invoice
-    if (merchantKey && merchantKey.trim() !== '') {
-      const orderId = `ORD_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
-      
+    // If NOWPayments API Key is configured, create live crypto invoice
+    if (apiKey && apiKey.trim() !== '') {
       const host = req.headers['x-forwarded-host'] || req.headers.host || 'mystery-click.vercel.app';
       const protocol = host.includes('localhost') ? 'http' : 'https';
-      const callbackUrl = `${protocol}://${host}/api/payments/oxapay-webhook`;
-      const returnUrl = `${protocol}://${host}/?payment=success`;
+      
+      const orderId = `MC_${encodeURIComponent(cleanEmail)}_${amount}_${Date.now()}`;
+      const callbackUrl = `https://mystery-click.vercel.app/api/payments/nowpayments-webhook`;
+      const successUrl = `${protocol}://${host}/?payment=success`;
+      const cancelUrl = `${protocol}://${host}/`;
 
-      const response = await fetch('https://api.oxapay.com/merchants/request', {
+      const response = await fetch('https://api.nowpayments.io/v1/invoice', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'x-api-key': apiKey.trim(),
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
-          merchant: merchantKey,
-          amount: parseFloat(usdPrice),
-          currency: 'USD',
-          orderId: orderId,
-          email: cleanEmail,
-          description: `${amount} Clicks Package for ${cleanEmail}`,
-          callbackUrl: callbackUrl,
-          returnUrl: returnUrl,
-          lifeTime: 60 // 60 minutes payment window
+          price_amount: parseFloat(usdPrice),
+          price_currency: 'usd',
+          order_id: orderId,
+          order_description: `${amount} Tık Paketi (Mystery Click - ${cleanEmail})`,
+          ipn_callback_url: callbackUrl,
+          success_url: successUrl,
+          cancel_url: cancelUrl
         })
       });
 
       const json = await response.json();
 
-      if (json.result === 100 && json.payLink) {
-        return res.json({ success: true, checkoutUrl: json.payLink });
+      if (json.invoice_url) {
+        return res.json({ success: true, checkoutUrl: json.invoice_url });
       } else {
-        console.error('OxaPay request error:', json);
-        return res.status(400).json({ error: json.message || 'Kripto ödeme sayfası oluşturulamadı.' });
+        console.error('NOWPayments invoice error:', json);
+        return res.status(400).json({ error: json.message || 'Kripto ödeme faturası oluşturulamadı.' });
       }
     }
 
-    // FALLBACK / TEST MODE (If merchant key not filled yet)
+    // FALLBACK / TEST MODE (If API key not set yet)
     const result = await db.buyClicks(cleanEmail, amount);
     return res.json({
       success: true,
       mode: 'simulation',
       added: amount,
       newBalance: result.newBalance,
-      message: 'OxaPay anahtarı henüz girilmediği için test modunda tık yüklendi.'
+      message: 'Test modunda tık yüklendi.'
     });
 
   } catch (err) {
-    console.error('OxaPay Checkout error:', err);
+    console.error('NOWPayments Checkout error:', err);
     return res.status(500).json({ error: err.message || 'Ödeme başlatılamadı.' });
   }
 });
 
-// 3. OxaPay Webhook Listener (Instant balance crediting on blockchain confirmation)
-app.post('/api/payments/oxapay-webhook', async (req, res) => {
+// 3. NOWPayments Webhook Listener (IPN - Instant balance crediting on payment)
+app.post('/api/payments/nowpayments-webhook', async (req, res) => {
   try {
     const data = req.body;
-    console.log('⚡ OxaPay Webhook geldi:', data);
+    console.log('⚡ NOWPayments IPN bildirimi geldi:', data);
 
-    // OxaPay sends status === 'Paid' or 'Complete'
-    if (data.status === 'Paid' || data.status === 'Complete') {
-      const email = data.email;
-      const amountUsd = parseFloat(data.amount) || 1.0;
-      
-      // Calculate clicks purchased from USD amount ($0.10 per click)
-      const clicksToAdd = Math.round(amountUsd / 0.10);
+    // NOWPayments sends payment_status: 'finished', 'confirmed', 'sending', etc.
+    const status = data.payment_status;
+    if (status === 'finished' || status === 'confirmed') {
+      const orderId = data.order_id || '';
+      let userEmail = null;
+      let packageAmount = 0;
 
-      if (email && clicksToAdd >= 10) {
-        console.log(`💰 Kripto ödemesi onaylandı: ${email} -> +${clicksToAdd} tık ($${amountUsd})`);
-        await db.buyClicks(email, clicksToAdd);
+      // Extract from orderId: MC_user%40gmail.com_10_timestamp
+      if (orderId.startsWith('MC_')) {
+        const parts = orderId.split('_');
+        if (parts.length >= 4) {
+          userEmail = decodeURIComponent(parts[1]);
+          packageAmount = parseInt(parts[2], 10);
+        }
+      }
+
+      // Fallback calculation from price_amount ($0.10 per click)
+      if (!packageAmount && data.price_amount) {
+        packageAmount = Math.round(parseFloat(data.price_amount) / 0.10);
+      }
+
+      if (userEmail && packageAmount >= 10) {
+        console.log(`💰 Kripto ödemesi başarıyla tamamlandı: ${userEmail} -> +${packageAmount} tık`);
+        await db.buyClicks(userEmail, packageAmount);
 
         broadcast({
           type: 'PAYMENT_SUCCESS',
-          email: email,
-          clicksAdded: clicksToAdd
+          email: userEmail,
+          clicksAdded: packageAmount
         });
       }
     }
 
-    return res.send('OK');
+    return res.status(200).send('OK');
   } catch (err) {
-    console.error('OxaPay Webhook error:', err);
+    console.error('NOWPayments Webhook error:', err);
     return res.status(500).send('Webhook error');
   }
 });
