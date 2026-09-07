@@ -122,6 +122,12 @@
           <span>How It Works?</span>
         </button>
 
+        <!-- Free Clicks / Invite Button -->
+        <button id="openInviteBtnNav" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-purple-600/30 to-pink-600/30 hover:from-purple-600/50 hover:to-pink-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold transition-all shadow-sm active:scale-95" title="Earn Free Clicks">
+          <i class="fa-solid fa-gift text-pink-400"></i>
+          <span>Free Clicks</span>
+        </button>
+
         <!-- Balance Display -->
         <div id="balanceContainer" class="hidden flex items-center gap-2 bg-slate-800/90 border border-amber-500/30 px-3.5 py-1.5 rounded-xl shadow-inner">
           <div class="text-right">
@@ -210,6 +216,22 @@
         <button data-batch="1" class="batch-btn active px-3 py-1 rounded-xl text-xs font-bold transition-all bg-amber-500 text-black">1 Click</button>
         <button data-batch="5" class="batch-btn px-3 py-1 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white hover:bg-slate-800">5 Clicks</button>
         <button data-batch="10" class="batch-btn px-3 py-1 rounded-xl text-xs font-bold transition-all text-slate-400 hover:text-white hover:bg-slate-800">10 Clicks</button>
+      </div>
+
+      <!-- Free Clicks / Referral Banner Callout -->
+      <div class="mt-4 w-full max-w-sm sm:max-w-md p-3 rounded-2xl bg-gradient-to-r from-purple-950/60 via-slate-900/80 to-purple-950/60 border border-purple-500/30 shadow-lg flex items-center justify-between gap-3 text-xs backdrop-blur-sm">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center shrink-0">
+            <i class="fa-solid fa-gift text-pink-400 text-sm"></i>
+          </div>
+          <div class="truncate text-left">
+            <div class="font-extrabold text-white">Need Free Clicks?</div>
+            <div class="text-[11px] text-slate-400">Invite friends & get <span class="text-amber-300 font-bold">+2 clicks</span> each!</div>
+          </div>
+        </div>
+        <button id="openInviteBannerBtn" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-black text-xs shrink-0 shadow-md shadow-purple-500/20 transition-all active:scale-95 flex items-center gap-1">
+          <span>Get Free Clicks</span>
+        </button>
       </div>
 
     </div>
@@ -457,6 +479,69 @@
       </div>
     </div>
   </div>
+
+  <!-- MODAL 5: Invite Friends & Earn Free Clicks -->
+  <div id="inviteModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-900 border border-purple-500/40 rounded-3xl max-w-md w-full p-6 shadow-2xl relative animate-in">
+      <button id="closeInviteModalBtn" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+
+      <div class="text-center mb-5">
+        <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-purple-500 via-pink-500 to-amber-400 mx-auto flex items-center justify-center mb-3 shadow-lg shadow-purple-500/25">
+          <i class="fa-solid fa-gift text-2xl text-slate-950"></i>
+        </div>
+        <h3 class="text-xl font-black text-white">Earn Free Clicks</h3>
+        <p class="text-xs text-slate-300 mt-1">
+          Share your secret invite link. When a friend joins using your link, <span class="text-amber-300 font-bold">you both receive +2 FREE CLICKS!</span>
+        </p>
+      </div>
+
+      <!-- Invite Link Box -->
+      <div class="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 mb-4">
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Your Unique Invite Link</label>
+        <div class="flex items-center gap-2">
+          <input type="text" id="inviteLinkInput" readonly value="https://mystery-click.vercel.app/" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-200 select-all focus:outline-none truncate font-mono">
+          <button id="copyInviteLinkBtn" class="px-3.5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shrink-0 transition-all active:scale-95 flex items-center gap-1.5">
+            <i class="fa-regular fa-copy"></i>
+            <span id="copyBtnText">Copy</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- One-Tap Share Channels -->
+      <div class="space-y-2 mb-4">
+        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">One-Tap Direct Share:</div>
+        <div class="grid grid-cols-3 gap-2">
+          <a id="shareWhatsApp" href="#" target="_blank" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition-all text-center">
+            <i class="fa-brands fa-whatsapp text-sm"></i> WhatsApp
+          </a>
+          <a id="shareTelegram" href="#" target="_blank" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 border border-sky-500/30 text-sky-300 text-xs font-bold transition-all text-center">
+            <i class="fa-brands fa-telegram text-sm"></i> Telegram
+          </a>
+          <a id="shareTwitter" href="#" target="_blank" class="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white text-xs font-bold transition-all text-center">
+            <i class="fa-brands fa-x-twitter text-sm"></i> Twitter/X
+          </a>
+        </div>
+      </div>
+
+      <!-- Live Referral Stats -->
+      <div class="p-3 rounded-xl bg-slate-950/80 border border-slate-800 text-center text-xs text-slate-400 flex items-center justify-around">
+        <div>
+          <span class="text-[10px] block text-slate-500 uppercase font-semibold">Friends Invited</span>
+          <span id="inviteCountText" class="font-extrabold text-purple-400 text-sm">0</span>
+        </div>
+        <div class="h-6 w-px bg-slate-800"></div>
+        <div>
+          <span class="text-[10px] block text-slate-500 uppercase font-semibold">Bonus Clicks Earned</span>
+          <span id="inviteBonusClicksText" class="font-extrabold text-amber-400 text-sm">0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Toast Notification Container -->
+  <div id="toastContainer" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 pointer-events-none w-full max-w-sm px-4"></div>
 
   <script src="app.js"></script>
 </body>

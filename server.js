@@ -145,7 +145,7 @@ app.get('/api/feed', async (req, res) => {
 // 1. User Login / Registration (Rate Limited & Signed Token)
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
-    const { email, nickname } = req.body;
+    const { email, nickname, ref } = req.body;
     if (!email || !nickname) {
       return res.status(400).json({ error: 'Email and Nickname are required.' });
     }
@@ -155,7 +155,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Please enter a valid email address.' });
     }
 
-    const user = await db.getOrCreateUser(cleanEmail, nickname);
+    const user = await db.getOrCreateUser(cleanEmail, nickname, ref);
     const initData = await db.getInitialState();
     const token = generateAuthToken(cleanEmail, user.nickname || nickname);
 

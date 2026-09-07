@@ -58,6 +58,12 @@ class DatabaseManager {
         const client = await this.pgPool.connect();
         console.log('✅ Supabase PostgreSQL veritabanına başarıyla bağlandı!');
         
+        // Ensure referral columns exist in users table
+        await client.query(`
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by VARCHAR(255);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_count INT DEFAULT 0;
+        `);
+
         // Initial sync of game_state
         const res = await client.query("SELECT * FROM game_state WHERE key = 'main_mystery_game';");
         if (res.rows.length === 0) {
@@ -92,38 +98,126 @@ class DatabaseManager {
     }
   }
 
-  // 1. Get or Create User
-  async getOrCreateUser(email, nickname) {
+  // 1. Get or Create User (With Free Welcome Click & Referral Rewards)
+  async getOrCreateUser(email, nickname, refCode = null) {
     const cleanEmail = email.trim().toLowerCase();
     const cleanNick = nickname.trim().slice(0, 20);
+    const cleanRef = refCode ? refCode.trim() : null;
 
     if (this.usePostgres) {
-      const query = `
-        INSERT INTO users (email, nickname, balance_clicks, total_clicks)
-        VALUES ($1, $2, 0, 0)
-        ON CONFLICT (email) DO UPDATE SET
-          nickname = EXCLUDED.nickname,
-          last_active = NOW()
-        RETURNING id, email, nickname, balance_clicks as balance, total_clicks as "totalClicks", created_at;
-      `;
-      const res = await this.pgPool.query(query, [cleanEmail, cleanNick]);
-      return res.rows[0];
+      const client = await this.pgPool.connect();
+      try {
+        await client.query('BEGIN');
+
+        // Check if user already exists
+        const existingRes = await client.query(`
+          SELECT id, email, nickname, balance_clicks as balance, total_clicks as "totalClicks", created_at, referral_count as "referralCount"
+          FROM users WHERE email = $1;
+        `, [cleanEmail]);
+
+        if (existingRes.rows.length > 0) {
+          // Returning user: update nickname and last_active
+          const updated = await client.query(`
+            UPDATE users SET nickname = $1, last_active = NOW()
+            WHERE email = $2
+            RETURNING id, email, nickname, balance_clicks as balance, total_clicks as "totalClicks", created_at, referral_count as "referralCount";
+          `, [cleanNick, cleanEmail]);
+          await client.query('COMMIT');
+          return { ...updated.rows[0], isNewUser: false };
+        }
+
+        // New user! Determine starting balance and referral bonus
+        let startingBalance = 1; // 1 Free Welcome Click by default
+        let validReferrer = null;
+
+        if (cleanRef) {
+          // Check if cleanRef matches an existing user's nickname or email
+          const refRes = await client.query(`
+            SELECT id, email, nickname, balance_clicks FROM users 
+            WHERE (LOWER(nickname) = LOWER($1) OR LOWER(email) = LOWER($1)) AND email != $2
+            LIMIT 1;
+          `, [cleanRef, cleanEmail]);
+
+          if (refRes.rows.length > 0) {
+            validReferrer = refRes.rows[0];
+            startingBalance = 2; // Referee gets 2 Free Clicks!
+            
+            // Reward the referrer with +2 Clicks
+            await client.query(`
+              UPDATE users 
+              SET balance_clicks = balance_clicks + 2,
+                  referral_count = COALESCE(referral_count, 0) + 1
+              WHERE id = $1;
+            `, [validReferrer.id]);
+            console.log(`🎁 Referral bonus credited: @${validReferrer.nickname} (+2 clicks) for inviting ${cleanEmail}`);
+          }
+        }
+
+        // Insert new user with free clicks
+        const insertRes = await client.query(`
+          INSERT INTO users (email, nickname, balance_clicks, total_clicks, referred_by)
+          VALUES ($1, $2, $3, 0, $4)
+          RETURNING id, email, nickname, balance_clicks as balance, total_clicks as "totalClicks", created_at, referral_count as "referralCount";
+        `, [cleanEmail, cleanNick, startingBalance, validReferrer ? validReferrer.nickname : null]);
+
+        await client.query('COMMIT');
+        return { 
+          ...insertRes.rows[0], 
+          isNewUser: true, 
+          freeClicksGiven: startingBalance,
+          referredBy: validReferrer ? validReferrer.nickname : null 
+        };
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     }
 
     // Local Fallback
-    if (!this.localState.users[cleanEmail]) {
-      this.localState.users[cleanEmail] = {
-        email: cleanEmail,
-        nickname: cleanNick,
-        balance: 0,
-        totalClicks: 0,
-        createdAt: Date.now()
-      };
-    } else {
+    if (this.localState.users[cleanEmail]) {
       this.localState.users[cleanEmail].nickname = cleanNick;
+      this.saveLocal();
+      return { ...this.localState.users[cleanEmail], isNewUser: false };
     }
+
+    // New user in local fallback
+    let startingBalance = 1;
+    let validReferrerNick = null;
+
+    if (cleanRef) {
+      const refUserKey = Object.keys(this.localState.users).find(k => {
+        const u = this.localState.users[k];
+        return (u.nickname.toLowerCase() === cleanRef.toLowerCase() || u.email.toLowerCase() === cleanRef.toLowerCase()) && u.email !== cleanEmail;
+      });
+
+      if (refUserKey) {
+        const referrer = this.localState.users[refUserKey];
+        referrer.balance = (referrer.balance || 0) + 2;
+        referrer.referralCount = (referrer.referralCount || 0) + 1;
+        validReferrerNick = referrer.nickname;
+        startingBalance = 2;
+      }
+    }
+
+    this.localState.users[cleanEmail] = {
+      email: cleanEmail,
+      nickname: cleanNick,
+      balance: startingBalance,
+      totalClicks: 0,
+      referredBy: validReferrerNick,
+      referralCount: 0,
+      createdAt: Date.now()
+    };
     this.saveLocal();
-    return this.localState.users[cleanEmail];
+
+    return {
+      ...this.localState.users[cleanEmail],
+      isNewUser: true,
+      freeClicksGiven: startingBalance,
+      referredBy: validReferrerNick
+    };
   }
 
   // 2. Buy Clicks (Purchase with Replay Protection)

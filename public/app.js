@@ -135,6 +135,21 @@ const openRulesBtn = document.getElementById('openRulesBtn');
 const closeRulesModalBtn = document.getElementById('closeRulesModalBtn');
 const openRulesBtnNav = document.getElementById('openRulesBtnNav');
 
+// Invite Modal & Toast Elements
+const inviteModal = document.getElementById('inviteModal');
+const closeInviteModalBtn = document.getElementById('closeInviteModalBtn');
+const openInviteBtnNav = document.getElementById('openInviteBtnNav');
+const openInviteBannerBtn = document.getElementById('openInviteBannerBtn');
+const inviteLinkInput = document.getElementById('inviteLinkInput');
+const copyInviteLinkBtn = document.getElementById('copyInviteLinkBtn');
+const copyBtnText = document.getElementById('copyBtnText');
+const shareWhatsApp = document.getElementById('shareWhatsApp');
+const shareTelegram = document.getElementById('shareTelegram');
+const shareTwitter = document.getElementById('shareTwitter');
+const inviteCountText = document.getElementById('inviteCountText');
+const inviteBonusClicksText = document.getElementById('inviteBonusClicksText');
+const toastContainer = document.getElementById('toastContainer');
+
 // Sound Toggle
 soundToggleBtn.addEventListener('click', () => {
   sounds.enabled = !sounds.enabled;
@@ -320,14 +335,15 @@ function checkStoredUser() {
 // User Login Request
 async function loginUser(email, nickname, showNotice = true) {
   try {
+    const ref = localStorage.getItem('mystery_ref') || '';
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, nickname })
+      body: JSON.stringify({ email, nickname, ref })
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data.error || 'Sign in failed.');
+      showToast(data.error || 'Sign in failed.', 'error');
       return;
     }
 
@@ -341,13 +357,25 @@ async function loginUser(email, nickname, showNotice = true) {
     updateUserUI();
     loginModal.classList.add('hidden');
 
-    if (showNotice && state.user.balance === 0) {
+    // Free Welcome Clicks & Viral Referral Rewards Handling
+    if (data.user && data.user.isNewUser) {
+      localStorage.removeItem('mystery_ref'); // Ref consumed
+      if (data.user.referredBy) {
+        sounds.playJackpot();
+        confetti({ particleCount: 75, spread: 70, origin: { y: 0.6 } });
+        showToast(`🎉 Welcome @${state.user.nickname}! You earned 2 FREE CLICKS for using @${data.user.referredBy}'s invite link!`, 'gift', 6000);
+      } else {
+        sounds.playCoin();
+        confetti({ particleCount: 45, spread: 55, origin: { y: 0.6 } });
+        showToast(`🎁 Welcome @${state.user.nickname}! You received 1 FREE CLICK to test the Mystery Button!`, 'gift', 5000);
+      }
+    } else if (showNotice && state.user.balance === 0) {
       // Prompt to buy clicks
       openBuyModal();
     }
   } catch (err) {
     console.error('Login error:', err);
-    alert('Connection error occurred.');
+    showToast('Connection error occurred. Please try again.', 'error');
   }
 }
 
@@ -377,6 +405,13 @@ function updateUserUI() {
 
     balanceContainer.classList.remove('hidden');
     userBalanceText.textContent = state.user.balance;
+
+    if (inviteCountText && state.user.referralCount !== undefined) {
+      inviteCountText.textContent = state.user.referralCount;
+    }
+    if (inviteBonusClicksText && state.user.referralCount !== undefined) {
+      inviteBonusClicksText.textContent = state.user.referralCount * 2;
+    }
   } else {
     userBadgeArea.innerHTML = `
       <button id="openLoginModalBtn" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs sm:text-sm shadow-lg shadow-cyan-500/20 transition-all flex items-center gap-2 active:scale-95">
@@ -600,6 +635,128 @@ if (openRulesBtnNav) {
   openRulesBtnNav.addEventListener('click', () => rulesModal.classList.remove('hidden'));
 }
 
+// Floating Toast Notification
+function showToast(message, type = 'info', duration = 4500) {
+  if (!toastContainer) return;
+
+  const toast = document.createElement('div');
+  const borderColors = {
+    success: 'border-emerald-500/50 bg-slate-900/95 text-emerald-300 shadow-emerald-500/20',
+    gift: 'border-purple-500/50 bg-slate-900/95 text-purple-200 shadow-purple-500/20',
+    info: 'border-cyan-500/50 bg-slate-900/95 text-cyan-300 shadow-cyan-500/20',
+    error: 'border-rose-500/50 bg-slate-900/95 text-rose-300 shadow-rose-500/20'
+  };
+  const icons = {
+    success: 'fa-solid fa-circle-check text-emerald-400',
+    gift: 'fa-solid fa-gift text-pink-400',
+    info: 'fa-solid fa-circle-info text-cyan-400',
+    error: 'fa-solid fa-circle-exclamation text-rose-400'
+  };
+
+  const theme = borderColors[type] || borderColors.info;
+  const icon = icons[type] || icons.info;
+
+  toast.className = `flex items-center gap-2.5 px-4 py-3 rounded-2xl border shadow-xl backdrop-blur-md text-xs font-semibold pointer-events-auto transform transition-all duration-300 translate-y-[-10px] opacity-0 ${theme}`;
+  toast.innerHTML = `
+    <i class="${icon} text-base shrink-0"></i>
+    <span class="leading-snug">${message}</span>
+  `;
+
+  toastContainer.appendChild(toast);
+
+  // Animate in
+  requestAnimationFrame(() => {
+    toast.classList.remove('translate-y-[-10px]', 'opacity-0');
+    toast.classList.add('translate-y-0', 'opacity-100');
+  });
+
+  // Auto remove
+  setTimeout(() => {
+    toast.classList.remove('translate-y-0', 'opacity-100');
+    toast.classList.add('translate-y-[-10px]', 'opacity-0');
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+}
+
+// Check & Save Referral Code from URL
+function captureReferralCode() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const refParam = params.get('ref');
+    if (refParam) {
+      const cleanRef = refParam.trim().slice(0, 30);
+      localStorage.setItem('mystery_ref', cleanRef);
+
+      // If user is not logged in, announce invite reward with a toast!
+      const stored = localStorage.getItem('mystery_user');
+      if (!stored && !state.user) {
+        setTimeout(() => {
+          showToast(`🎁 You were invited by @${escapeHtml(cleanRef)}! Sign in now to receive 2 FREE CLICKS!`, 'gift', 7000);
+        }, 800);
+      }
+    }
+  } catch (err) {
+    console.warn('Could not parse referral param:', err);
+  }
+}
+
+// Open Invite Modal & Generate Personal Links
+function openInviteModal() {
+  if (!state.user) {
+    loginModal.classList.remove('hidden');
+    showToast('Please sign in first to access your personal invite link!', 'info', 4000);
+    return;
+  }
+
+  const origin = window.location.origin;
+  const inviteUrl = `${origin}/?ref=${encodeURIComponent(state.user.nickname)}`;
+  if (inviteLinkInput) inviteLinkInput.value = inviteUrl;
+
+  const shareText = `Try "The Mystery Click" — 5,000,000 secret clicks. One lucky clicker wins everything! Join with my link to get +2 FREE CLICKS:`;
+  if (shareWhatsApp) {
+    shareWhatsApp.href = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + inviteUrl)}`;
+  }
+  if (shareTelegram) {
+    shareTelegram.href = `https://t.me/share/url?url=${encodeURIComponent(inviteUrl)}&text=${encodeURIComponent(shareText)}`;
+  }
+  if (shareTwitter) {
+    shareTwitter.href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(inviteUrl)}`;
+  }
+
+  if (inviteCountText) inviteCountText.textContent = state.user.referralCount || 0;
+  if (inviteBonusClicksText) inviteBonusClicksText.textContent = (state.user.referralCount || 0) * 2;
+
+  if (inviteModal) inviteModal.classList.remove('hidden');
+}
+
+// Copy Invite Link Button Logic
+if (copyInviteLinkBtn) {
+  copyInviteLinkBtn.addEventListener('click', async () => {
+    if (!inviteLinkInput) return;
+    try {
+      await navigator.clipboard.writeText(inviteLinkInput.value);
+    } catch (e) {
+      inviteLinkInput.select();
+      document.execCommand('copy');
+    }
+    if (copyBtnText) copyBtnText.textContent = 'Copied!';
+    copyInviteLinkBtn.classList.remove('bg-purple-600', 'hover:bg-purple-500');
+    copyInviteLinkBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+    showToast('Invite link copied to clipboard! Share it with your friends.', 'success', 3000);
+
+    setTimeout(() => {
+      if (copyBtnText) copyBtnText.textContent = 'Copy';
+      copyInviteLinkBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+      copyInviteLinkBtn.classList.add('bg-purple-600', 'hover:bg-purple-500');
+    }, 2000);
+  });
+}
+
+// Wire Invite Modal Buttons
+if (openInviteBtnNav) openInviteBtnNav.addEventListener('click', openInviteModal);
+if (openInviteBannerBtn) openInviteBannerBtn.addEventListener('click', openInviteModal);
+if (closeInviteModalBtn) closeInviteModalBtn.addEventListener('click', () => inviteModal.classList.add('hidden'));
+
 // Open Login Modal (Delegated so it works on initial load and after re-renders)
 document.addEventListener('click', (e) => {
   const loginTrigger = e.target.closest('#openLoginModalBtn');
@@ -610,7 +767,7 @@ document.addEventListener('click', (e) => {
 });
 
 // Close modals when clicking backdrop
-[loginModal, buyModal, rulesModal, winnerModal].forEach(modal => {
+[loginModal, buyModal, rulesModal, winnerModal, inviteModal].forEach(modal => {
   if (modal) {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) {
@@ -658,4 +815,5 @@ document.addEventListener('DOMContentLoaded', () => {
   initWebSocket();
   checkStoredUser();
   updateUserUI();
+  captureReferralCode();
 });
